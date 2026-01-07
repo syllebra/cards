@@ -3,888 +3,494 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Regicide - Le Jeu</title>
+    <title>Sélection du Jeu</title>
     
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Polices de caractères -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     
-    <!-- Lucide Icons -->
+    <!-- Script pour les icônes -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
-    <!-- Google Fonts -->
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=MedievalSharp&display=swap');
-        .font-medieval { fontFamily: 'MedievalSharp', cursive; }
-        .font-cinzel { fontFamily: 'Cinzel', serif; }
-        
-        body {
-            user-select: none;
-            -webkit-user-select: none;
-            overflow: hidden;
+        :root {
+            --bg-color: #0f172a;
+            --color-regicide: #ef4444;
+            --color-scoundrel: #10b981;
+            --color-locked: #64748b;
+            --text-main: #ffffff;
+            --tilt-angle: -10deg; /* L'angle d'inclinaison des panneaux */
         }
 
-        /* --- ANIMATIONS PUNCHY --- */
-        
-        /* 1. Attaque Ciblée : Utilise des variables CSS calculées en JS */
-        @keyframes attack-target-motion {
-            0% { transform: translate(0, 0) scale(1) rotate(0); opacity: 1; }
-            20% { transform: translate(0, 20px) scale(0.9) rotate(-5deg); } /* Recul */
-            100% { transform: translate(var(--tx), var(--ty)) scale(0.4) rotate(180deg); opacity: 0; } /* Impact */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none; /* Empêche la sélection de texte pour un feeling plus "App/Jeu" */
         }
-        .anim-attacking { 
-            animation: attack-target-motion 0.5s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards !important; 
-            z-index: 100 !important;
-            box-shadow: 0 0 20px rgba(255, 200, 0, 0.6);
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+        }
+
+        /* --- UI CONTROLS --- */
+        .sound-toggle {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            z-index: 100;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(4px);
+        }
+
+        .sound-toggle:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            transform: scale(1.1);
+            box-shadow: 0 0 20px rgba(255,255,255,0.2);
+        }
+
+        .sound-toggle.active {
+            border-color: #10b981;
+            color: #10b981;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+        }
+
+        /* --- ACCORDEON GLOBAL --- */
+        .accordion {
+            display: flex;
+            width: 120%; /* Plus large pour compenser le skew et éviter les bords vides */
+            height: 100%;
+            margin-left: -10%; /* Centrer le débordement */
+            background: #000;
+        }
+
+        /* --- PANNEAU INDIVIDUEL --- */
+        .panel {
+            position: relative;
+            flex: 1; /* Tous égaux au départ */
+            height: 100%;
+            border-right: 1px solid rgba(255,255,255,0.1);
+            border-left: 1px solid rgba(255,255,255,0.05);
+            transition: flex 0.4s cubic-bezier(0.2, 0, 0, 1), filter 0.2s ease; /* Transition accélérée pour effet nerveux */
+            overflow: hidden;
+            
+            /* L'inclinaison magique */
+            transform: skewX(var(--tilt-angle));
+            
+            /* Glassmorphism de base */
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(5px);
+            
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-decoration: none;
+            color: white;
+            cursor: pointer;
+        }
+
+        /* Overlay couleur/dégradé */
+        .panel::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.8));
+            z-index: 1;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+        
+        /* Image/Gradient de fond spécifique par jeu */
+        .panel-bg {
+            position: absolute;
+            top: -20%; left: -20%; right: -20%; bottom: -20%; /* Plus grand pour contrer le skew */
+            transform: skewX(calc(var(--tilt-angle) * -1)); /* Annuler le skew pour le fond */
+            background-size: cover;
+            background-position: center;
+            opacity: 0.3;
+            transition: transform 1s ease-out, opacity 0.3s ease;
+            z-index: 0;
             pointer-events: none;
         }
 
-        /* 2. Défense */
-        @keyframes defense-motion {
-            0% { transform: scale(1); box-shadow: 0 0 0 rgba(59, 130, 246, 0); }
-            50% { transform: scale(1.15); box-shadow: 0 0 30px rgba(59, 130, 246, 0.8); border-color: #93c5fd; }
-            100% { transform: scale(0.8); opacity: 0; }
-        }
-        .anim-defending {
-            animation: defense-motion 0.5s ease-in-out forwards !important;
-            z-index: 50 !important;
-        }
-
-        /* 3. Capture */
-        @keyframes perfect-kill {
-            0% { transform: scale(1) rotate(0); filter: brightness(1); }
-            40% { transform: scale(1.3) rotate(-5deg); filter: brightness(2) drop-shadow(0 0 30px gold); }
-            100% { transform: scale(0) rotate(360deg); filter: brightness(5) opacity(0); }
-        }
-        .anim-capture {
-            animation: perfect-kill 1s ease-in forwards !important;
+        /* --- ÉTATS HOVER (EXPANSION) --- */
+        .panel:hover {
+            flex: 4; /* S'agrandit massivement */
+            filter: brightness(1.2) contrast(1.1);
+            z-index: 10;
+            box-shadow: 0 0 60px rgba(0,0,0,0.8);
+            border-left: 1px solid rgba(255,255,255,0.4);
+            border-right: 1px solid rgba(255,255,255,0.4);
         }
 
-        /* 4. Tremblement */
-        @keyframes shake-hard {
-            0%, 100% { transform: translateX(0); }
-            10%, 30%, 50%, 70%, 90% { transform: translateX(-8px) rotate(-1deg); }
-            20%, 40%, 60%, 80% { transform: translateX(8px) rotate(1deg); }
-        }
-        .anim-shake {
-            animation: shake-hard 0.4s ease-in-out;
+        .panel:hover .panel-bg {
+            opacity: 0.7;
+            transform: skewX(calc(var(--tilt-angle) * -1)) scale(1.05); /* Zoom plus sec */
         }
 
-        /* 5. Phase Announcement (Texte Fullscreen) */
-        @keyframes phase-zoom {
-            0% { transform: scale(0.5); opacity: 0; letter-spacing: 0.5em; }
-            20% { transform: scale(1.2); opacity: 1; letter-spacing: 0.1em; }
-            80% { transform: scale(1); opacity: 1; letter-spacing: 0.1em; }
-            100% { transform: scale(1.5); opacity: 0; letter-spacing: 0.5em; }
-        }
-        .phase-text-anim {
-            animation: phase-zoom 1.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        /* --- CONTENU (TEXTE & ICONES) --- */
+        .content-wrapper {
+            position: relative;
+            z-index: 10;
+            /* On annule l'inclinaison pour que le texte reste droit */
+            transform: skewX(calc(var(--tilt-angle) * -1));
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            width: 100%;
+            max-width: 400px;
+            padding: 0 2rem;
+            opacity: 0.7;
+            transition: all 0.3s ease;
         }
 
-        /* Transitions de fond */
-        .bg-transition {
-            transition: background-color 1s ease, box-shadow 1s ease;
+        .panel:hover .content-wrapper {
+            opacity: 1;
+            transform: skewX(calc(var(--tilt-angle) * -1)) scale(1.05);
+        }
+
+        /* Icône principale */
+        .icon-box {
+            margin-bottom: 1rem;
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .panel:hover .icon-box {
+            transform: scale(1.3) rotate(-5deg);
+            filter: drop-shadow(0 0 15px currentColor);
+        }
+
+        /* Titre */
+        h2 {
+            font-family: 'Cinzel', serif;
+            font-size: 2.5rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            white-space: nowrap;
+        }
+
+        /* Description (cachée par défaut, visible au hover) */
+        .description {
+            font-size: 1rem;
+            line-height: 1.6;
+            color: rgba(255,255,255,0.9);
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            transition: all 0.4s ease;
+            transform: translateY(20px);
+        }
+
+        .panel:hover .description {
+            max-height: 200px;
+            opacity: 1;
+            transform: translateY(0);
+            margin-top: 1rem;
+        }
+
+        /* Bouton Jouer */
+        .btn-play {
+            margin-top: 0;
+            padding: 0.8rem 3rem;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.6);
+            color: white;
+            font-family: 'Inter', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 700;
+            font-size: 1rem;
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.3s ease 0.1s;
         }
         
-        /* Gradients dynamiques pour les phases */
-        .phase-player {
-            background: radial-gradient(circle at center, #292524 0%, #1c1917 100%);
+        .panel:hover .btn-play {
+            opacity: 1;
+            transform: translateY(0);
+            margin-top: 2.5rem;
         }
-        .phase-enemy {
-            background: radial-gradient(circle at center, #450a0a 0%, #2a0505 100%); /* Rouge sombre */
-            box-shadow: inset 0 0 100px #7f1d1d;
+        
+        .btn-play:hover {
+            background: white;
+            color: black;
+            box-shadow: 0 0 30px rgba(255,255,255,0.6);
+            transform: scale(1.05);
+        }
+
+        /* --- STYLES SPÉCIFIQUES --- */
+        
+        /* Regicide */
+        .regicide .panel-bg {
+            background-image: radial-gradient(circle at center, var(--color-regicide), #450a0a);
+        }
+        .regicide:hover { border-color: var(--color-regicide); }
+        .regicide h2 { color: var(--color-regicide); }
+        .regicide .icon-box { color: var(--color-regicide); }
+
+        /* Scoundrel */
+        .scoundrel .panel-bg {
+            background-image: radial-gradient(circle at center, var(--color-scoundrel), #064e3b);
+        }
+        .scoundrel:hover { border-color: var(--color-scoundrel); }
+        .scoundrel h2 { color: var(--color-scoundrel); }
+        .scoundrel .icon-box { color: var(--color-scoundrel); }
+
+        /* Locked / Coming Soon */
+        .locked { cursor: not-allowed; }
+        .locked .panel-bg {
+            background-image: radial-gradient(circle at center, var(--color-locked), #1e293b);
+            filter: grayscale(1);
+        }
+        .locked:hover { flex: 1.5; /* S'ouvre moins */ }
+        .locked h2 { color: var(--color-locked); }
+
+        
+        /* --- RESPONSIVE MOBILE --- */
+        @media (max-width: 768px) {
+            .sound-toggle { top: 15px; right: 15px; width: 40px; height: 40px; }
+            .accordion {
+                flex-direction: column;
+                width: 100%;
+                margin-left: 0;
+            }
+            .panel {
+                width: 100%;
+                transform: none; /* Pas de skew sur mobile */
+                border-right: none;
+                border-bottom: 1px solid rgba(255,255,255,0.1);
+            }
+            .panel-bg {
+                transform: none;
+                top: 0; left: 0; right: 0; bottom: 0;
+            }
+            .panel:hover .panel-bg {
+                transform: scale(1.1);
+            }
+            .content-wrapper {
+                transform: none;
+            }
+            .panel:hover .content-wrapper {
+                transform: scale(1.05);
+            }
+            
+            /* Sur mobile, on affiche un peu plus d'infos par défaut */
+            h2 { font-size: 1.5rem; }
+            .icon-box i { width: 32px; height: 32px; }
         }
     </style>
 </head>
-<body class="bg-stone-900 text-stone-200 font-serif h-screen flex flex-col relative">
+<body>
 
-    <!-- Overlay pour les flashs de dégâts -->
-    <div id="damage-overlay" class="absolute inset-0 pointer-events-none z-40 transition-colors duration-200"></div>
+    <!-- BOUTON SON -->
+    <button id="soundToggle" class="sound-toggle" title="Activer/Désactiver le son">
+        <i data-lucide="volume-x" width="24" height="24"></i>
+    </button>
 
-    <!-- Overlay Annonces Fullscreen -->
-    <div id="phase-overlay" class="absolute inset-0 pointer-events-none z-50 flex items-center justify-center hidden">
-        <h1 id="phase-text" class="text-6xl sm:text-8xl font-black font-cinzel text-yellow-500 drop-shadow-[0_5px_5px_rgba(0,0,0,1)] text-center px-4 border-y-4 border-white/20 bg-black/50 py-8 backdrop-blur-sm w-full">
-            <!-- JS injectera le texte ici -->
-        </h1>
-    </div>
+    <div class="accordion">
+        
+        <!-- JEU 1 : REGICIDE -->
+        <a href="regicide.html" class="panel regicide">
+            <div class="panel-bg"></div> <!-- Fond animé -->
+            <div class="content-wrapper">
+                <div class="icon-box">
+                    <i data-lucide="crown" width="64" height="64" stroke-width="1.5"></i>
+                </div>
+                <h2>Regicide</h2>
+                <div class="description">
+                    <p>Un jeu de cartes coopératif brutal.</p>
+                    <p>Unissez vos forces, jouez vos combos et abattez la monarchie corrompue.</p>
+                </div>
+                <div class="btn-play">Jouer</div>
+            </div>
+        </a>
 
-    <div id="app" class="h-full w-full flex flex-col">
-        <!-- L'application sera injectée ici par JavaScript -->
+        <!-- JEU 2 : SCOUNDREL -->
+        <a href="scoundrel.html" class="panel scoundrel">
+            <div class="panel-bg"></div>
+            <div class="content-wrapper">
+                <div class="icon-box">
+                    <i data-lucide="skull" width="64" height="64" stroke-width="1.5"></i>
+                </div>
+                <h2>Scoundrel</h2>
+                <div class="description">
+                    <p>Un donjon solo minimaliste.</p>
+                    <p>Gérez votre deck comme un inventaire. Chaque carte est une arme ou un danger.</p>
+                </div>
+                <div class="btn-play">Jouer</div>
+            </div>
+        </a>
+
+        <!-- JEU 3 : BIENTÔT -->
+        <div class="panel locked">
+            <div class="panel-bg"></div>
+            <div class="content-wrapper">
+                <div class="icon-box">
+                    <i data-lucide="plus" width="64" height="64" stroke-width="1.5"></i>
+                </div>
+                <h2>Bientôt</h2>
+                <div class="description">
+                    <p>De nouvelles aventures sont en préparation.</p>
+                    <p>Revenez plus tard pour découvrir d'autres classiques.</p>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script>
-        // --- UTILITAIRES ASYNC ---
-        const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+        // Initialisation des icônes
+        lucide.createIcons();
 
-        // --- GESTIONNAIRE AUDIO ---
-        const SoundManager = {
-            ctx: null,
-            init: () => {
-                if (!SoundManager.ctx) {
-                    SoundManager.ctx = new (window.AudioContext || window.webkitAudioContext)();
-                }
-            },
-            playTone: (freq, type, duration, vol = 0.1) => {
-                if (!SoundManager.ctx) return;
-                const osc = SoundManager.ctx.createOscillator();
-                const gain = SoundManager.ctx.createGain();
-                osc.type = type;
-                osc.frequency.setValueAtTime(freq, SoundManager.ctx.currentTime);
-                gain.gain.setValueAtTime(vol, SoundManager.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, SoundManager.ctx.currentTime + duration);
-                osc.connect(gain);
-                gain.connect(SoundManager.ctx.destination);
-                osc.start();
-                osc.stop(SoundManager.ctx.currentTime + duration);
-            },
-            playPhaseStart: () => {
-                SoundManager.init();
-                SoundManager.playTone(100, 'sawtooth', 0.8, 0.3);
-                setTimeout(() => SoundManager.playTone(80, 'sine', 1.0, 0.4), 50);
-            },
-            playAttack: () => {
-                SoundManager.init();
-                const osc = SoundManager.ctx.createOscillator();
-                const gain = SoundManager.ctx.createGain();
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(100, SoundManager.ctx.currentTime);
-                osc.frequency.linearRampToValueAtTime(800, SoundManager.ctx.currentTime + 0.2);
-                gain.gain.setValueAtTime(0.1, SoundManager.ctx.currentTime);
-                gain.gain.linearRampToValueAtTime(0, SoundManager.ctx.currentTime + 0.2);
-                osc.connect(gain);
-                gain.connect(SoundManager.ctx.destination);
-                osc.start();
-                setTimeout(() => {
-                    SoundManager.playTone(100, 'square', 0.2, 0.2); // Impact
-                }, 200);
-            },
-            playShield: () => {
-                SoundManager.init();
-                SoundManager.playTone(400, 'sine', 0.1, 0.2);
-                setTimeout(() => SoundManager.playTone(800, 'triangle', 0.3, 0.1), 50);
-            },
-            playHeal: () => {
-                SoundManager.init();
-                SoundManager.playTone(300, 'sine', 0.2, 0.1);
-                setTimeout(() => SoundManager.playTone(500, 'sine', 0.2, 0.1), 150);
-                setTimeout(() => SoundManager.playTone(800, 'sine', 0.4, 0.1), 300);
-            },
-            playDraw: () => {
-                SoundManager.init();
-                SoundManager.playTone(1200, 'sine', 0.05, 0.05);
-            },
-            playDamage: () => {
-                SoundManager.init();
-                SoundManager.playTone(100, 'sawtooth', 0.3, 0.3);
-            },
-            playCapture: () => {
-                SoundManager.init();
-                [440, 554, 659, 880, 1100].forEach((freq, i) => {
-                    setTimeout(() => SoundManager.playTone(freq, 'sine', 0.3, 0.1), i * 80);
-                });
-            },
-            playVictory: () => {
-                SoundManager.init();
-                [440, 554, 659, 880].forEach((freq, i) => {
-                    setTimeout(() => SoundManager.playTone(freq, 'square', 0.4, 0.2), i * 150);
-                });
-            },
-            playDefeat: () => {
-                SoundManager.init();
-                [400, 350, 300, 200].forEach((freq, i) => {
-                    setTimeout(() => SoundManager.playTone(freq, 'sawtooth', 0.5, 0.2), i * 200);
-                });
+        /* --- SYSTÈME AUDIO ARCADE (Procedural) --- */
+        const soundToggleBtn = document.getElementById('soundToggle');
+        const icon = soundToggleBtn.querySelector('i');
+        
+        let audioCtx = null;
+        let isMuted = true;
+
+        // Fonction pour initialiser l'AudioContext (nécessaire après interaction user)
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
             }
-        };
-
-        // --- CONSTANTES ---
-        const SUITS = {
-            HEARTS: { symbol: '♥', color: 'text-red-600', name: 'Cœur', power: 'SOIN' },
-            DIAMONDS: { symbol: '♦', color: 'text-red-500', name: 'Carreau', power: 'PIOCHE' },
-            CLUBS: { symbol: '♣', color: 'text-slate-800', name: 'Trèfle', power: 'DÉGÂTS X2' },
-            SPADES: { symbol: '♠', color: 'text-slate-900', name: 'Pique', power: 'BOUCLIER' }
-        };
-
-        const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
-
-        const getCardValue = (rank) => {
-            if (rank === 'A') return 1;
-            if (rank === 'J') return 10;
-            if (rank === 'Q') return 15;
-            if (rank === 'K') return 20;
-            return parseInt(rank);
-        };
-
-        const shuffle = (array) => {
-            let currentIndex = array.length, randomIndex;
-            while (currentIndex !== 0) {
-                randomIndex = Math.floor(Math.random() * currentIndex);
-                currentIndex--;
-                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
             }
-            return array;
-        };
-
-        const createDeck = () => {
-            let deck = [];
-            let id = 0;
-            Object.keys(SUITS).forEach(suitKey => {
-                RANKS.forEach(rank => {
-                    deck.push({
-                        id: id++,
-                        suit: SUITS[suitKey],
-                        rank: rank,
-                        value: getCardValue(rank),
-                        isFace: ['J', 'Q', 'K'].includes(rank)
-                    });
-                });
-            });
-            return deck;
-        };
-
-        // --- ETAT GLOBAL ---
-        const state = {
-            phase: 'START',
-            messages: [],
-            showRules: false,
-            tavernDeck: [],
-            castleDeck: [],
-            hand: [],
-            discardPile: [],
-            currentEnemy: null,
-            enemyHP: 0,
-            selectedCardIds: [],
-            currentAttackValue: 0,
-            shieldValue: 0,
-            jokersUsed: 0
-        };
-
-        // --- GESTION DES EFFETS VISUELS ---
-        function showPhaseAnnouncement(text, colorClass = "text-yellow-500") {
-            const overlay = document.getElementById('phase-overlay');
-            const txt = document.getElementById('phase-text');
-            
-            txt.innerText = text;
-            txt.className = `text-5xl sm:text-7xl font-black font-cinzel drop-shadow-[0_5px_5px_rgba(0,0,0,1)] text-center px-4 border-y-4 border-white/20 bg-black/50 py-8 backdrop-blur-sm w-full phase-text-anim ${colorClass}`;
-            
-            overlay.classList.remove('hidden');
-            SoundManager.playPhaseStart();
-
-            setTimeout(() => {
-                overlay.classList.add('hidden');
-            }, 1500);
         }
 
-        // --- LOGIQUE DU JEU ---
+        // Son Glitch/Hover (Aigu, Rapide, Nerveux)
+        function playHoverSound() {
+            if (isMuted || !audioCtx) return;
 
-        function initializeGame() {
-            SoundManager.playDraw();
-            const fullDeck = createDeck();
+            const t = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            // Type Sawtooth pour le côté "électrique"
+            osc.type = 'sawtooth';
             
-            const nums = fullDeck.filter(c => !c.isFace);
-            const jacks = fullDeck.filter(c => c.rank === 'J');
-            const queens = fullDeck.filter(c => c.rank === 'Q');
-            const kings = fullDeck.filter(c => c.rank === 'K');
+            // Slide de fréquence rapide (Chirp)
+            osc.frequency.setValueAtTime(600, t);
+            osc.frequency.exponentialRampToValueAtTime(1200, t + 0.05);
 
-            const castle = [...shuffle(kings), ...shuffle(queens), ...shuffle(jacks)];
-            const tavern = shuffle(nums);
-            const initialHand = tavern.splice(-8); 
+            // Enveloppe de volume ultra courte
+            gain.gain.setValueAtTime(0.05, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
 
-            state.tavernDeck = tavern;
-            state.castleDeck = castle;
-            state.hand = initialHand;
-            state.discardPile = [];
-            state.jokersUsed = 0;
-            state.shieldValue = 0;
-            state.messages = ["Bienvenue, héros."];
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
             
-            nextEnemy(castle);
-            render();
-            setTimeout(() => showPhaseAnnouncement("COMBAT !", "text-red-500"), 100);
+            osc.start(t);
+            osc.stop(t + 0.1);
         }
 
-        function nextEnemy(currentCastleDeck) {
-            if (currentCastleDeck.length === 0) {
-                state.phase = 'WON';
-                SoundManager.playVictory();
-                render();
-                return;
-            }
-            const newDeck = [...currentCastleDeck];
-            const newEnemy = newDeck.pop();
-            state.castleDeck = newDeck;
-            state.currentEnemy = newEnemy;
+        // Son Click/Select (Impact, Basse, Confirmation)
+        function playClickSound() {
+            if (isMuted || !audioCtx) return;
+
+            const t = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            // Onde carrée pour le "punch" rétro
+            osc.type = 'square';
             
-            let hp = 20; 
-            let atk = 10;
-            if (newEnemy.rank === 'Q') { hp = 30; atk = 15; }
-            if (newEnemy.rank === 'K') { hp = 40; atk = 20; }
+            // Drop de fréquence (Pew/Boom)
+            osc.frequency.setValueAtTime(250, t);
+            osc.frequency.exponentialRampToValueAtTime(50, t + 0.2);
+
+            // Enveloppe un peu plus longue
+            gain.gain.setValueAtTime(0.1, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
             
-            state.enemyHP = hp;
-            state.currentAttackValue = atk;
-            state.phase = 'PLAYER_TURN';
-            state.selectedCardIds = [];
-            state.shieldValue = 0;
-            render();
+            osc.start(t);
+            osc.stop(t + 0.2);
         }
 
-        function addMessage(msg) {
-            state.messages.unshift(msg);
-            state.messages = state.messages.slice(0, 5);
+        // Son Boot/Activation
+        function playBootSound() {
+            if (!audioCtx) return;
+            const t = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(220, t);
+            osc.frequency.setValueAtTime(440, t + 0.1);
+            osc.frequency.setValueAtTime(880, t + 0.2);
+            
+            gain.gain.setValueAtTime(0.05, t);
+            gain.gain.linearRampToValueAtTime(0, t + 0.4);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.start(t);
+            osc.stop(t + 0.4);
         }
 
-        function handleCardClick(cardId) {
-            if (state.phase === 'WON' || state.phase === 'LOST') return;
-            const card = state.hand.find(c => c.id === cardId);
-            if(!card) return;
+        // --- GESTIONNAIRES D'ÉVÉNEMENTS ---
 
-            if (state.selectedCardIds.includes(cardId)) {
-                state.selectedCardIds = state.selectedCardIds.filter(id => id !== cardId);
+        // Toggle Mute/Unmute
+        soundToggleBtn.addEventListener('click', () => {
+            initAudio();
+            isMuted = !isMuted;
+
+            if (!isMuted) {
+                soundToggleBtn.classList.add('active');
+                icon.setAttribute('data-lucide', 'volume-2');
+                playBootSound();
             } else {
-                if (state.phase === 'PLAYER_TURN') {
-                    const selectedCards = state.hand.filter(c => state.selectedCardIds.includes(c.id));
-                    const isAce = card.rank === 'A';
-                    const nonAceCards = selectedCards.filter(c => c.rank !== 'A');
-                    
-                    if (selectedCards.length === 0) {
-                        state.selectedCardIds = [cardId];
-                    } else if (isAce) {
-                        state.selectedCardIds.push(cardId);
-                    } else if (nonAceCards.length > 0) {
-                        if (nonAceCards[0].rank !== card.rank) {
-                            addMessage("Rangs différents.");
-                        } else {
-                            const currentSum = nonAceCards.reduce((acc, c) => acc + c.value, 0);
-                            if (currentSum + card.value > 10) {
-                                addMessage("Somme > 10.");
-                            } else {
-                                state.selectedCardIds.push(cardId);
-                            }
-                        }
-                    } else {
-                        state.selectedCardIds.push(cardId);
-                    }
-                } 
-                else if (state.phase === 'ENEMY_ATTACK_PHASE') {
-                    state.selectedCardIds.push(cardId);
-                }
+                soundToggleBtn.classList.remove('active');
+                icon.setAttribute('data-lucide', 'volume-x');
             }
-            render();
-        }
-
-        async function executeAttack() {
-            const cardsPlayed = state.hand.filter(c => state.selectedCardIds.includes(c.id));
-            if (cardsPlayed.length === 0) return;
-
-            SoundManager.playAttack();
-            
-            const enemyEl = document.getElementById('enemy-card-container');
-            const enemyRect = enemyEl ? enemyEl.getBoundingClientRect() : { top: 0, left: 0, width: 0, height: 0 };
-            const enemyCenterX = enemyRect.left + enemyRect.width / 2;
-            const enemyCenterY = enemyRect.top + enemyRect.height / 2;
-
-            state.selectedCardIds.forEach(id => {
-                const el = document.querySelector(`[data-id="${id}"]`);
-                if(el) {
-                    const rect = el.getBoundingClientRect();
-                    const elCenterX = rect.left + rect.width / 2;
-                    const elCenterY = rect.top + rect.height / 2;
-                    
-                    const tx = enemyCenterX - elCenterX;
-                    const ty = enemyCenterY - elCenterY;
-
-                    el.style.setProperty('--tx', `${tx}px`);
-                    el.style.setProperty('--ty', `${ty}px`);
-                    
-                    el.classList.add('anim-attacking');
-                }
-            });
-
-            await wait(450);
-
-            let nextHand = state.hand.filter(c => !state.selectedCardIds.includes(c.id));
-            let nextDiscard = [...state.discardPile, ...cardsPlayed];
-            let nextTavern = [...state.tavernDeck];
-            let nextShieldValue = state.shieldValue;
-
-            let attackValue = cardsPlayed.reduce((acc, c) => acc + c.value, 0);
-            
-            const enemySuit = state.currentEnemy.suit.name;
-            let isShield = false, isHeal = false, isDraw = false, isDouble = false;
-
-            cardsPlayed.forEach(card => {
-                if (card.suit.name === enemySuit) return; 
-                if (card.suit.name === 'Trèfle') isDouble = true;
-                if (card.suit.name === 'Pique') isShield = true;
-                if (card.suit.name === 'Cœur') isHeal = true;
-                if (card.suit.name === 'Carreau') isDraw = true;
-            });
-
-            if (isDouble) attackValue *= 2;
-
-            let shieldPointsAdded = 0;
-            if (isShield) {
-                shieldPointsAdded = attackValue;
-                nextShieldValue += shieldPointsAdded;
-                SoundManager.playShield();
-                addMessage(`Bouclier : +${shieldPointsAdded}.`);
-            }
-
-            
-            let remainingHP = state.enemyHP - attackValue;
-            addMessage(`Attaque ! ${attackValue} dégâts.`);
-
-            if (remainingHP === 0) {
-                const enemyEl = document.getElementById('enemy-card-container');
-                if (enemyEl) {
-                    enemyEl.classList.add('anim-capture');
-                    SoundManager.playCapture();
-                    await wait(1500); 
-                }
-            } else if (remainingHP < 0) {
-                 const enemyEl = document.getElementById('enemy-card-container');
-                 if(enemyEl) {
-                     enemyEl.classList.add('anim-shake');
-                     await wait(200);
-                 }
-            }
-
-            if (isHeal && nextDiscard.length > 0) {
-                const healAmount = attackValue;
-                SoundManager.playHeal();
-                const shuffledDiscard = shuffle([...nextDiscard]);
-                const healedCards = shuffledDiscard.splice(0, healAmount);
-                nextTavern.unshift(...healedCards);
-                nextDiscard = shuffledDiscard;
-                addMessage(`Soin : ${healedCards.length} cartes.`);
-            }
-
-            if (isDraw) {
-                const currentHandSize = nextHand.length;
-                const spaceInHand = 8 - currentHandSize;
-                const drawAmount = Math.min(attackValue, spaceInHand);
-                if (drawAmount > 0 && nextTavern.length > 0) {
-                    SoundManager.playDraw();
-                    const actualDrawAmount = Math.min(drawAmount, nextTavern.length);
-                    const cardsDrawn = nextTavern.splice(-actualDrawAmount);
-                    nextHand = [...nextHand, ...cardsDrawn];
-                    addMessage(`Pioche : +${cardsDrawn.length} cartes.`);
-                }
-            }
-
-            state.discardPile = nextDiscard;
-            state.tavernDeck = nextTavern;
-            state.hand = nextHand;
-            state.shieldValue = nextShieldValue;
-            state.selectedCardIds = [];
-
-            if (remainingHP <= 0) {
-                if (remainingHP === 0) {
-                    addMessage(`Coup parfait ! Capturé !`);
-                    state.tavernDeck.push(state.currentEnemy);
-                } else {
-                    addMessage(`Vaincu !`);
-                    state.discardPile.push(state.currentEnemy);
-                }
-                
-                nextEnemy(state.castleDeck);
-                
-                if (state.phase !== 'WON') {
-                     showPhaseAnnouncement("À VOUS !", "text-green-500");
-                }
-            } else {
-                state.enemyHP = remainingHP;
-                state.phase = 'ENEMY_ATTACK_PHASE';
-                const damageToTake = Math.max(0, state.currentAttackValue - shieldPointsAdded);
-                state.currentAttackValue = damageToTake; 
-                
-                render(); 
-                
-                if (damageToTake === 0) {
-                    addMessage("Attaque bloquée !");
-                    state.phase = 'PLAYER_TURN';
-                    state.shieldValue = 0; 
-                    showPhaseAnnouncement("CONTRE !", "text-blue-400");
-                } else {
-                    addMessage(`Riposte ! Bloquez ${damageToTake}.`);
-                    document.getElementById('app').classList.add('anim-shake');
-                    setTimeout(() => document.getElementById('app').classList.remove('anim-shake'), 400);
-                    showPhaseAnnouncement("DÉFENDEZ !", "text-red-600");
-                }
-                render();
-            }
-        }
-
-        async function executeDefense() {
-            const cardsPlayed = state.hand.filter(c => state.selectedCardIds.includes(c.id));
-            const defenseValue = cardsPlayed.reduce((acc, c) => acc + c.value, 0);
-
-            if (defenseValue < state.currentAttackValue) {
-                addMessage(`Défense insuffisante !`);
-                SoundManager.playDamage();
-                
-                const overlay = document.getElementById('damage-overlay');
-                overlay.style.backgroundColor = 'rgba(220, 38, 38, 0.5)';
-                document.getElementById('app').classList.add('anim-shake');
-                setTimeout(() => {
-                    overlay.style.backgroundColor = 'transparent';
-                    document.getElementById('app').classList.remove('anim-shake');
-                }, 300);
-
-                render();
-                return;
-            }
-
-            state.selectedCardIds.forEach(id => {
-                const el = document.querySelector(`[data-id="${id}"]`);
-                if(el) el.classList.add('anim-defending');
-            });
-            SoundManager.playShield();
-            
-            await wait(450);
-
-            state.discardPile.push(...cardsPlayed);
-            state.hand = state.hand.filter(c => !state.selectedCardIds.includes(c.id));
-            state.selectedCardIds = [];
-            
-            state.phase = 'PLAYER_TURN';
-            let baseAtk = 10;
-            if (state.currentEnemy.rank === 'Q') baseAtk = 15;
-            if (state.currentEnemy.rank === 'K') baseAtk = 20;
-            state.currentAttackValue = baseAtk;
-            state.shieldValue = 0;
-            
-            render();
-            showPhaseAnnouncement("À L'ATTAQUE", "text-stone-200");
-        }
-
-        function useJoker() {
-            if (state.jokersUsed >= 2 || (state.phase !== 'PLAYER_TURN' && state.phase !== 'ENEMY_ATTACK_PHASE')) return;
-            
-            SoundManager.playHeal();
-            const currentHand = [...state.hand];
-            state.discardPile.push(...currentHand);
-            
-            const nextTavern = [...state.tavernDeck];
-            const newHand = nextTavern.splice(-8); 
-
-            state.tavernDeck = nextTavern;
-            state.hand = newHand;
-            state.jokersUsed += 1;
-            state.selectedCardIds = [];
-            addMessage("Joker utilisé !");
-            showPhaseAnnouncement("JOKER !", "text-purple-500");
-            render();
-        }
-
-        function checkAutoLoss() {
-             if (state.phase === 'ENEMY_ATTACK_PHASE') {
-                const totalHandValue = state.hand.reduce((acc, c) => acc + c.value, 0);
-                if (totalHandValue < state.currentAttackValue && state.jokersUsed >= 2) {
-                    setTimeout(() => {
-                        state.phase = 'LOST';
-                        SoundManager.playDefeat();
-                        render();
-                    }, 1000);
-                }
-            }
-        }
-
-        // --- VISUEL (RENDERING) ---
-
-        function renderCardHTML(card, isSelected, disabled, size = 'normal', hidden = false, countLabel = null, className = '') {
-            if (!card && !hidden) return `<div class="${size === 'small' ? 'w-12 h-16' : 'w-16 h-24 sm:w-24 sm:h-36'} border-2 border-dashed border-stone-600 rounded opacity-20"></div>`;
-
-            if (hidden) {
-                return `
-                <div class="relative rounded-lg border-2 border-stone-600 bg-stone-800 shadow-xl ${size === 'small' ? 'w-12 h-16' : 'w-20 h-28 sm:w-24 sm:h-36'} flex items-center justify-center select-none ${className}">
-                    ${countLabel > 1 ? '<div class="absolute inset-0 bg-stone-700 rounded-lg transform translate-x-1 translate-y-1 -z-10 border border-stone-800"></div>' : ''}
-                    ${countLabel > 5 ? '<div class="absolute inset-0 bg-stone-700 rounded-lg transform translate-x-2 translate-y-2 -z-20 border border-stone-800"></div>' : ''}
-                    <div class="w-full h-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-stone-700 via-stone-900 to-black rounded opacity-80 flex items-center justify-center">
-                        <span class="text-stone-600 text-2xl">⚜</span>
-                    </div>
-                    ${countLabel !== null ? `<div class="absolute inset-0 flex items-center justify-center z-10"><span class="text-xl font-bold text-stone-200 drop-shadow-md">${countLabel}</span></div>` : ''}
-                </div>`;
-            }
-
-            const baseClasses = `relative rounded-lg shadow-md border-2 transition-all duration-200 cursor-pointer select-none bg-stone-100 ${isSelected ? 'transform -translate-y-4 ring-4 ring-yellow-500 z-10' : 'hover:-translate-y-1'} ${disabled ? 'opacity-50 cursor-not-allowed grayscale' : ''} ${size === 'small' ? 'w-12 h-16 text-xs' : 'w-20 h-28 sm:w-24 sm:h-36'}`;
-            
-            return `
-            <div data-id="${card.id}" class="${baseClasses} ${card.suit.color} ${className}" onclick="window.game.handleCardClick(${card.id})">
-                <div class="absolute top-1 left-1 font-bold leading-none flex flex-col items-center">
-                    <span>${card.rank}</span>
-                    <span class="text-[0.6rem] sm:text-sm">${card.suit.symbol}</span>
-                </div>
-                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                     ${card.isFace 
-                        ? `<div class="text-4xl sm:text-5xl opacity-80 ${card.suit.color === 'text-slate-800' || card.suit.color === 'text-slate-900' ? 'text-stone-800' : 'text-red-800'}">
-                            ${card.rank === 'J' ? '🛡️' : card.rank === 'Q' ? '👑' : '🦁'}
-                           </div>`
-                        : `<div class="text-3xl sm:text-5xl ${card.suit.color}">${card.suit.symbol}</div>`
-                     }
-                </div>
-                <div class="absolute bottom-1 right-1 font-bold leading-none flex flex-col items-center rotate-180">
-                    <span>${card.rank}</span>
-                    <span class="text-[0.6rem] sm:text-sm">${card.suit.symbol}</span>
-                </div>
-            </div>`;
-        }
-
-        function renderJoker(available) {
-             return `
-            <div onclick="${available ? 'window.game.useJoker()' : ''}" 
-                class="relative w-10 h-14 sm:w-12 sm:h-16 rounded border border-stone-600 flex items-center justify-center transition-all ${available ? 'bg-purple-900 cursor-pointer hover:bg-purple-800 hover:scale-105 shadow-[0_0_10px_rgba(168,85,247,0.4)]' : 'bg-stone-900 opacity-30 cursor-default grayscale'}"
-                title="${available ? "Utiliser un Joker" : "Joker utilisé"}">
-                <span class="text-xl">🃏</span>
-            </div>`;
-        }
-
-        function render() {
-            const app = document.getElementById('app');
-            
-            // --- GESTION COULEUR DE FOND ---
-            if (state.phase === 'ENEMY_ATTACK_PHASE') {
-                document.body.className = "bg-stone-900 text-stone-200 font-serif h-screen flex flex-col relative phase-enemy bg-transition";
-            } else {
-                document.body.className = "bg-stone-900 text-stone-200 font-serif h-screen flex flex-col relative phase-player bg-transition";
-            }
-
-            // --- ECRAN START / WIN / LOSS ---
-            if (state.phase === 'START' || state.phase === 'WON' || state.phase === 'LOST') {
-                const title = state.phase === 'START' ? 'RÉGICIDE' : (state.phase === 'WON' ? 'VICTOIRE !' : 'DÉFAITE');
-                const titleColor = state.phase === 'WON' ? 'text-yellow-400' : (state.phase === 'LOST' ? 'text-red-500' : 'text-yellow-600');
-                const btnIcon = state.phase === 'START' ? 'play' : 'refresh-cw';
-                const btnText = state.phase === 'START' ? "Commencer" : "Recommencer";
-
-                app.innerHTML = `
-                <div class="min-h-screen flex flex-col items-center justify-center p-4 font-serif text-stone-200">
-                    <div class="max-w-md text-center space-y-6 bg-stone-800 p-8 rounded-xl border-4 border-stone-600 shadow-2xl animate-in zoom-in">
-                        <h1 class="text-6xl font-bold ${titleColor} mb-4" style="font-family: Georgia, serif">${title}</h1>
-                        ${state.phase !== 'START' ? `<div class="text-2xl font-bold mb-4 animate-bounce ${titleColor}">${state.phase === 'WON' ? 'Le royaume est libre !' : 'Vous êtes tombé...'}</div>` : ''}
-                        <div class="flex justify-center gap-4 text-4xl mb-4">
-                            <span>♠️</span><span>♥️</span><span>♣️</span><span>♦️</span>
-                        </div>
-                        <p class="text-lg text-stone-300">Libérez le royaume de la corruption.</p>
-                        <button onclick="window.game.initializeGame()" class="w-full py-4 bg-yellow-700 hover:bg-yellow-600 text-yellow-100 font-bold rounded-lg text-xl transition-all border-b-4 border-yellow-900 active:border-b-0 active:translate-y-1 flex items-center justify-center gap-2">
-                            <i data-lucide="${btnIcon}"></i> ${btnText}
-                        </button>
-                    </div>
-                </div>`;
-                lucide.createIcons();
-                return;
-            }
-
-            // --- JEU PRINCIPAL ---
-            
-            const selectedSum = state.hand.filter(c => state.selectedCardIds.includes(c.id)).reduce((acc, c) => acc + c.value, 0);
-            
-            let estimatedDamage = selectedSum;
-            const selectedCards = state.hand.filter(c => state.selectedCardIds.includes(c.id));
-            const hasClub = selectedCards.some(c => c.suit.name === 'Trèfle');
-            const enemyIsClub = state.currentEnemy && state.currentEnemy.suit.name === 'Trèfle';
-            if (hasClub && !enemyIsClub) estimatedDamage *= 2;
-
-            // Header HTML
-            const castleDeckHtml = state.castleDeck.length > 0 
-                ? renderCardHTML(null, false, false, 'small', true, state.castleDeck.length)
-                : '<div class="w-12 h-16 border-2 border-dashed border-stone-700 rounded opacity-30"></div>';
-            
-            const tavernDeckHtml = state.tavernDeck.length > 0
-                ? renderCardHTML(null, false, false, 'small', true, state.tavernDeck.length)
-                : '<div class="w-12 h-16 border-2 border-dashed border-stone-700 rounded opacity-30"></div>';
-
-            const discardTop = state.discardPile.length > 0 
-                ? renderCardHTML(state.discardPile[state.discardPile.length - 1], false, true, 'small') 
-                : '<div class="w-12 h-16 border-2 border-dashed border-stone-700 rounded flex items-center justify-center"><span class="text-stone-700 text-xl">☠️</span></div>';
-
-            // Enemy Area
-            let enemyArea = '';
-            if (state.currentEnemy) {
-                // MODIFICATION IMMUNITE: Symbole au lieu du nom
-                const immunitySymbol = state.currentEnemy.suit.symbol;
-                
-                enemyArea = `
-                <div id="enemy-card-container" class="relative group animate-in zoom-in duration-300">
-                    <div class="absolute -left-16 top-4 flex flex-col gap-3">
-                        <div class="flex items-center gap-2 bg-red-950/90 p-2 pl-3 rounded-l-lg border-l-4 border-red-600 text-red-100 shadow-xl">
-                            <i data-lucide="heart" class="text-red-600 fill-current"></i>
-                            <span class="font-bold text-2xl font-medieval tracking-widest">${state.enemyHP}</span>
-                        </div>
-                        <div class="flex items-center gap-2 bg-stone-800/90 p-2 pl-3 rounded-l-lg border-l-4 border-stone-400 text-stone-200 shadow-xl">
-                            <i data-lucide="sword" class="text-stone-400"></i>
-                            <span class="font-bold text-2xl font-medieval tracking-widest">${state.currentAttackValue}</span>
-                        </div>
-                    </div>
-                    <div class="transform scale-110 sm:scale-125 origin-center shadow-[0_10px_50px_rgba(0,0,0,0.8)] transition-transform duration-300">
-                        ${renderCardHTML(state.currentEnemy, false, true)}
-                    </div>
-                    <div class="absolute -right-20 top-8 bg-black/80 p-2 rounded-r border-r-2 border-stone-600 text-xs w-20 text-center backdrop-blur-sm shadow-xl flex flex-col items-center">
-                        <div class="text-stone-500 uppercase text-[10px] tracking-widest mb-1">Immunité</div>
-                        <span class="font-bold text-4xl ${state.currentEnemy.suit.color} drop-shadow-md">${immunitySymbol}</span>
-                    </div>
-                </div>`;
-            }
-
-            // Action Zone
-            let actionZone = '';
-            if (state.phase === 'PLAYER_TURN') {
-                const canAttack = state.selectedCardIds.length > 0;
-                actionZone = `
-                <div class="flex items-center gap-6 animate-in fade-in">
-                    <div class="text-stone-400 text-sm bg-stone-800 px-4 py-2 rounded-lg border border-stone-700 flex flex-col items-center min-w-[100px]">
-                        <span class="uppercase text-[10px] tracking-widest text-stone-500">Puissance</span>
-                        <div class="flex items-baseline gap-1">
-                            <span class="text-white font-bold text-2xl font-medieval">${selectedSum}</span>
-                            ${canAttack ? `<span class="text-xs text-red-400 font-bold">(${estimatedDamage})</span>` : ''}
-                        </div>
-                    </div>
-                    <button onclick="window.game.executeAttack()" ${!canAttack ? 'disabled' : ''} class="px-8 py-2 rounded font-medieval text-2xl tracking-wide transition-all transform shadow-lg flex items-center gap-2 ${canAttack ? 'bg-red-800 hover:bg-red-700 text-white shadow-red-900/50 scale-105 active:scale-95' : 'bg-stone-800 text-stone-600 cursor-not-allowed border border-stone-700'}">
-                        <i data-lucide="sword"></i> ATTAQUER
-                    </button>
-                </div>`;
-            } else if (state.phase === 'ENEMY_ATTACK_PHASE') {
-                const canDefend = selectedSum >= state.currentAttackValue;
-                actionZone = `
-                <div class="flex items-center gap-4 w-full justify-center bg-red-950/40 h-full animate-pulse border-y border-red-900/50">
-                    <div class="text-red-200 font-bold flex items-center gap-2 text-lg">
-                        <i data-lucide="shield" class="animate-bounce"></i>
-                        <div class="flex flex-col leading-none">
-                            <span class="text-xs uppercase opacity-70">Défense Requise</span>
-                            <span class="font-medieval text-xl">${selectedSum} / ${state.currentAttackValue}</span>
-                        </div>
-                    </div>
-                    <button onclick="window.game.executeDefense()" class="px-6 py-2 rounded font-bold border transition-all flex items-center gap-2 ${canDefend ? 'bg-blue-800 text-white hover:bg-blue-700 border-blue-500 shadow-lg scale-105 active:scale-95' : 'bg-stone-800 text-stone-500 border-stone-600 cursor-not-allowed'}">
-                        <i data-lucide="shield"></i> ENCAISSER
-                    </button>
-                </div>`;
-            }
-
-            // Hand Zone
-            const handHtml = state.hand.length > 0 
-                ? state.hand.map(c => renderCardHTML(c, state.selectedCardIds.includes(c.id), false, 'normal', false, null, 'hover:z-20 transition-all')).join('')
-                : '<div class="text-stone-500 italic opacity-50 font-medieval text-xl">Votre main est vide...</div>';
-
-            // Messages
-            const messagesHtml = state.messages.map((msg, i) => 
-                `<div class="text-center py-1 w-full ${i===0 ? 'text-yellow-100 font-bold text-lg drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]' : 'text-stone-500 text-sm opacity-60'} transition-all">${msg}</div>`
-            ).join('');
-
-            // Rules Modal
-            const rulesModal = state.showRules ? `
-            <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                <div class="bg-stone-800 border-2 border-stone-600 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl text-stone-200 font-serif relative">
-                    <button onclick="window.game.toggleRules(false)" class="absolute top-4 right-4 text-stone-400 hover:text-white"><i data-lucide="x"></i></button>
-                    <div class="p-8 space-y-6">
-                        <h2 class="text-3xl font-bold text-yellow-600 text-center border-b border-stone-700 pb-4">Grimoire des Règles</h2>
-                        <div class="grid md:grid-cols-2 gap-6">
-                            <div><h3 class="text-xl font-bold text-stone-100 mb-2">⚔️ Combat</h3><ul class="list-disc pl-5 space-y-1 text-sm text-stone-300"><li>Jouez des cartes pour attaquer.</li><li>La valeur de la carte = Dégâts.</li><li>As = 1 (Compagnon Animal).</li><li>Valet=10, Dame=15, Roi=20.</li></ul></div>
-                            <div><h3 class="text-xl font-bold text-stone-100 mb-2">🛡️ Défense</h3><ul class="list-disc pl-5 space-y-1 text-sm text-stone-300"><li>Si l'ennemi survit, il attaque.</li><li>Défaussez des cartes pour absorber.</li><li>Si vous ne pouvez pas tout absorber, vous perdez.</li></ul></div>
-                        </div>
-                        <div class="bg-stone-900/50 p-4 rounded border border-stone-700"><h3 class="text-xl font-bold text-stone-100 mb-3">✨ Combos</h3><p class="text-sm text-stone-300"><strong>Paires / Triples :</strong> Cartes de même valeur (Somme <= 10).<br><strong>Compagnons (As) :</strong> As + n'importe quelle carte unique.</p></div>
-                        <div class="bg-stone-900/50 p-4 rounded border border-stone-700"><h3 class="text-xl font-bold text-stone-100 mb-3">👹 Ennemis</h3><div class="grid grid-cols-3 gap-2 text-center text-sm"><div class="bg-stone-800 p-2 rounded border border-stone-600"><div class="font-bold text-white">Valets</div><div class="text-red-400">20 PV</div><div class="text-blue-300">10 Atk</div></div><div class="bg-stone-800 p-2 rounded border border-stone-600"><div class="font-bold text-white">Dames</div><div class="text-red-400">30 PV</div><div class="text-blue-300">15 Atk</div></div><div class="bg-stone-800 p-2 rounded border border-stone-600"><div class="font-bold text-white">Rois</div><div class="text-red-400">40 PV</div><div class="text-blue-300">20 Atk</div></div></div></div>
-                        <div class="text-center text-xs text-stone-500 pt-4">Astuce : Tuez avec dégâts EXACTS pour recruter l'ennemi !</div>
-                    </div>
-                </div>
-            </div>` : '';
-
-            // CONSTRUCTION DU DOM
-            app.innerHTML = `
-                ${rulesModal}
-                
-                <!-- HEADER -->
-                <div class="flex-1 p-4 flex flex-col items-center justify-start relative z-10">
-                    
-                    <!-- TITRE DU JEU (ARRIÈRE-PLAN) -->
-                    <div class="absolute top-0 left-0 w-full flex justify-center pointer-events-none z-0 opacity-20 mt-2">
-                        <h1 class="text-5xl sm:text-8xl font-bold font-medieval text-yellow-500 tracking-[0.2em] drop-shadow-xl">REGICIDE</h1>
-                    </div>
-
-                    <div class="w-full max-w-5xl flex justify-between items-start mb-6 text-xs sm:text-sm relative z-10">
-                        <div class="flex gap-6 items-end">
-                            <div class="flex flex-col items-center gap-1 group">${castleDeckHtml}<div class="text-stone-400 font-bold group-hover:text-stone-200">Château</div></div>
-                            <div class="flex flex-col items-center gap-1 group">${tavernDeckHtml}<div class="text-blue-400 font-bold group-hover:text-blue-300">Taverne</div></div>
-                        </div>
-                        <div class="flex gap-6 items-start">
-                            <div class="flex flex-col items-center gap-1">
-                                <div class="flex gap-1">
-                                    ${renderJoker(state.jokersUsed < 1)}
-                                    ${renderJoker(state.jokersUsed < 2)}
-                                </div>
-                                <div class="text-purple-400 font-bold text-xs mt-1">Jokers</div>
-                            </div>
-                            <div class="flex flex-col items-center gap-1">
-                                <div class="relative group">
-                                    ${discardTop}
-                                    <div class="absolute -bottom-2 -right-2 bg-stone-900 text-stone-500 text-[10px] px-1 rounded border border-stone-700 font-mono">${state.discardPile.length}</div>
-                                </div>
-                                <div class="text-stone-500 font-bold text-xs">Cimetière</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="flex items-center gap-8 mt-2">
-                        ${enemyArea}
-                    </div>
-
-                    <div class="mt-10 w-full max-w-lg h-24 overflow-hidden relative pointer-events-none flex flex-col items-center">
-                        <div class="absolute inset-0 bg-gradient-to-t from-stone-900/50 via-transparent to-transparent z-10"></div>
-                        ${messagesHtml}
-                    </div>
-                </div>
-
-                <!-- MIDDLE -->
-                <div class="h-24 bg-black/30 border-t-4 border-white/10 flex items-center justify-center relative shadow-inner z-20 backdrop-blur-sm">
-                    ${actionZone}
-                </div>
-
-                <!-- BOTTOM -->
-                <div class="flex-1 max-h-64 bg-stone-800/80 p-4 overflow-x-auto overflow-y-hidden bg-[url('https://www.transparenttextures.com/patterns/wood-pattern.png')] border-t border-stone-600 shadow-inner z-20">
-                    <div class="flex justify-center items-center h-full gap-2 sm:gap-4 min-w-max px-8 pb-4">
-                        ${handHtml}
-                    </div>
-                </div>
-
-                <!-- FIXED CONTROLS -->
-                <div class="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-2">
-                    <div class="flex gap-2">
-                        <button onclick="window.game.initializeGame()" class="flex items-center gap-2 bg-stone-700 hover:bg-stone-600 text-stone-200 px-4 py-2 rounded-full shadow-lg border border-stone-500 transition-all hover:scale-105 active:scale-95" title="Recommencer">
-                            <i data-lucide="refresh-cw"></i>
-                        </button>
-                        <button onclick="window.game.toggleRules(true)" class="flex items-center gap-2 bg-yellow-700 hover:bg-yellow-600 text-yellow-100 px-4 py-2 rounded-full shadow-lg border border-yellow-500 transition-all hover:scale-105 active:scale-95">
-                            <i data-lucide="book-open"></i> <span class="font-bold hidden sm:inline">Règles</span>
-                        </button>
-                    </div>
-                    <div class="bg-stone-900/90 border border-stone-600 p-3 rounded-lg shadow-2xl backdrop-blur-md text-xs sm:text-sm">
-                        <div class="grid grid-cols-2 gap-x-4 gap-y-2">
-                            <div class="flex items-center gap-2 text-red-500 font-bold"><span class="text-lg">♦️</span> Pioche</div>
-                            <div class="flex items-center gap-2 text-red-600 font-bold"><span class="text-lg">♥️</span> Soin</div>
-                            <div class="flex items-center gap-2 text-slate-400 font-bold"><span class="text-lg">♠️</span> Bouclier</div>
-                            <div class="flex items-center gap-2 text-slate-300 font-bold"><span class="text-lg">♣️</span> Dégâts x2</div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
             lucide.createIcons();
-            checkAutoLoss();
-        }
+        });
 
-        function toggleRules(show) {
-            state.showRules = show;
-            render();
-        }
+        // Attachement aux panels
+        const panels = document.querySelectorAll('.panel');
 
-        // Export global pour le HTML
-        window.game = {
-            initializeGame,
-            handleCardClick,
-            executeAttack,
-            executeDefense,
-            useJoker,
-            toggleRules
-        };
+        panels.forEach(panel => {
+            // Son au survol
+            panel.addEventListener('mouseenter', () => {
+                if(!panel.classList.contains('locked')) {
+                    playHoverSound();
+                }
+            });
 
-        // Premier rendu
-        render();
+            // Son au click (mousedown pour être sûr qu'il se lance avant la nav)
+            panel.addEventListener('mousedown', () => {
+                if(!panel.classList.contains('locked')) {
+                    playClickSound();
+                }
+            });
+        });
 
     </script>
 </body>
