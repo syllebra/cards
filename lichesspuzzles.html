@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Lichess Tactiques V15 - Tap Only</title>
+    <title>Lichess Tactiques V18 - Fixes</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -22,8 +22,6 @@
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
             border-radius: 0.5rem;
             overflow: hidden;
-            /* Pas de touch-action: none ici car on veut que le tap fonctionne nativement, 
-               mais on bloque le zoom sur l'app via meta viewport */
         }
 
         /* Thème Bleu */
@@ -49,27 +47,15 @@
             animation: pulse-purple 2s infinite;
         }
 
-        /* --- INDICES VISUELS --- */
+        /* Indices visuels */
         .hint-legal-move::after {
-            content: '';
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 25%; height: 25%;
-            background-color: rgba(0, 0, 0, 0.25);
-            border-radius: 50%;
-            pointer-events: none;
+            content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 25%; height: 25%; background-color: rgba(0, 0, 0, 0.25); border-radius: 50%; pointer-events: none;
         }
-
-        .hint-legal-capture {
-            box-shadow: inset 0 0 0 4px rgba(239, 68, 68, 0.6) !important;
-        }
+        .hint-legal-capture { box-shadow: inset 0 0 0 4px rgba(239, 68, 68, 0.6) !important; }
         .hint-legal-capture::after {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: radial-gradient(transparent 55%, rgba(239, 68, 68, 0.2) 100%);
-            pointer-events: none;
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(transparent 55%, rgba(239, 68, 68, 0.2) 100%); pointer-events: none;
         }
 
         @keyframes pulse-purple {
@@ -78,35 +64,20 @@
             100% { box-shadow: inset 0 0 0 4px #a855f7; }
         }
 
-        /* --- MODALE DE PROMOTION --- */
-        #promotion-modal {
-            background-color: rgba(15, 23, 42, 0.9);
-            backdrop-filter: blur(4px);
-        }
-        .promo-piece {
-            transition: transform 0.1s;
-            cursor: pointer;
-        }
-        .promo-piece:active {
-            transform: scale(0.9);
-        }
+        /* Modal Overlay */
+        .modal-overlay { background-color: rgba(15, 23, 42, 0.95); backdrop-filter: blur(4px); }
+        .promo-piece:active { transform: scale(0.9); }
+        
+        /* Blur infos */
+        .blur-info { filter: blur(5px); opacity: 0.6; pointer-events: none; user-select: none; }
+        .info-transition { transition: filter 0.5s ease, opacity 0.5s ease; }
+        
+        /* Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 3px; }
 
-        /* Effet de flou pour les infos cachées */
-        .blur-info {
-            filter: blur(5px);
-            opacity: 0.6;
-            pointer-events: none;
-            user-select: none;
-        }
-        .info-transition {
-            transition: filter 0.5s ease, opacity 0.5s ease;
-        }
-
-        body {
-            user-select: none;
-            -webkit-user-select: none;
-            overscroll-behavior: none;
-        }
+        body { user-select: none; -webkit-user-select: none; overscroll-behavior: none; }
     </style>
 </head>
 <body class="bg-slate-900 text-white h-screen flex flex-col font-sans overflow-hidden">
@@ -116,20 +87,31 @@
         <div class="flex justify-between items-center max-w-md mx-auto relative">
             <div class="flex items-center space-x-2">
                 <i class="fas fa-chess-knight text-blue-400 text-xl"></i>
-                <h1 class="font-bold text-lg">Tactiques</h1>
+                <h1 class="font-bold text-lg hidden sm:block">Tactiques</h1>
             </div>
 
             <div id="demo-badge" class="hidden absolute left-1/2 transform -translate-x-1/2 bg-orange-500/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-orange-400 animate-pulse">
                 MODE DÉMO
             </div>
             
-            <div class="flex items-center space-x-3">
-                <button id="toggle-info-btn" class="text-slate-400 hover:text-white transition p-2" title="Afficher/Masquer les infos">
+            <div class="flex items-center space-x-2">
+                <div id="user-elo-badge" class="hidden bg-blue-600/20 px-2 py-1 rounded border border-blue-500/50 flex items-center space-x-1 mr-1">
+                    <i class="fas fa-chart-line text-blue-400 text-xs"></i>
+                    <span id="header-user-elo" class="font-mono font-bold text-blue-100 text-sm">----</span>
+                </div>
+
+                <button id="user-btn" class="text-slate-400 hover:text-blue-400 transition p-2 relative" title="Profil">
+                    <i class="fas fa-user-circle text-lg"></i>
+                    <div id="user-status-dot" class="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500 border border-slate-800"></div>
+                </button>
+
+                <button id="toggle-info-btn" class="text-slate-400 hover:text-white transition p-2">
                     <i id="info-icon" class="fas fa-eye-slash"></i>
                 </button>
-                <div id="rating-container" class="bg-slate-700 px-3 py-1 rounded-full flex items-center space-x-2 border border-slate-600 info-transition blur-info">
-                    <i class="fas fa-trophy text-yellow-400 text-sm"></i>
-                    <span id="puzzle-rating" class="font-mono font-bold text-yellow-100">---</span>
+                
+                <div id="rating-container" class="bg-slate-700 px-2 py-1 rounded flex items-center space-x-1 border border-slate-600 info-transition blur-info">
+                    <i class="fas fa-trophy text-yellow-400 text-xs"></i>
+                    <span id="puzzle-rating" class="font-mono font-bold text-yellow-100 text-sm">---</span>
                 </div>
             </div>
         </div>
@@ -138,53 +120,64 @@
     <!-- MAIN -->
     <div class="flex-grow flex flex-col justify-center items-center w-full max-w-md mx-auto px-2 relative">
         
-        <!-- Adversaire -->
+        <!-- Joueur Haut (Adversaire) -->
         <div class="w-full flex justify-between items-end mb-2 px-1 relative z-0">
-            <div class="flex items-center space-x-2 opacity-80">
-                <div class="w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center border border-red-400/50">
-                    <i class="fas fa-robot text-red-400"></i>
+            <div class="flex items-center space-x-2 opacity-90">
+                <div class="w-8 h-8 bg-slate-700 rounded flex items-center justify-center border border-slate-600 relative">
+                    <i class="fas fa-robot text-slate-400"></i>
+                    <div id="top-color-indicator" class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border border-slate-500 shadow-sm flex items-center justify-center bg-white">
+                        <i class="fas fa-chess-pawn text-[8px] text-black"></i>
+                    </div>
                 </div>
                 <div class="flex flex-col leading-tight">
-                    <span id="top-player-name" class="text-sm font-semibold">Adversaire</span>
-                    <span id="top-player-rating" class="text-xs text-gray-400 font-mono"></span>
+                    <div class="flex items-center">
+                        <span id="top-player-name" class="text-sm font-bold text-slate-200">Adversaire</span>
+                        <span id="top-player-color-text" class="ml-2 text-[10px] uppercase font-bold text-slate-500 bg-slate-800 px-1 rounded border border-slate-700">Noir</span>
+                    </div>
+                    <span id="top-player-rating" class="text-xs text-slate-400 font-mono"></span>
                 </div>
             </div>
+            <!-- INDICATEUR TOUR (RESTAURÉ) -->
             <div id="top-indicator" class="hidden px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded animate-pulse">
                 À son tour
             </div>
         </div>
 
         <!-- Zone de message flottante -->
-        <div id="status-message" class="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-2 rounded-full font-bold shadow-2xl transition-all duration-300 opacity-0 -translate-y-4 pointer-events-none whitespace-nowrap border border-white/10 bg-slate-800/95 backdrop-blur text-sm">
+        <div id="status-message" class="absolute top-12 left-1/2 transform -translate-x-1/2 z-50 px-6 py-2 rounded-full font-bold shadow-2xl transition-all duration-300 opacity-0 -translate-y-4 pointer-events-none whitespace-nowrap border border-white/10 bg-slate-800/95 backdrop-blur text-sm">
             Message
         </div>
 
-        <!-- ECHIQUIER + Overlay Promotion -->
+        <!-- ECHIQUIER -->
         <div class="relative w-full max-w-[400px]">
-            <div id="myBoard" class="w-full board-container aspect-square"></div>
+            <div id="myBoard" class="w-full board-container aspect-square rounded-lg"></div>
             
-            <!-- MODALE PROMOTION -->
-            <div id="promotion-modal" class="hidden absolute inset-0 z-50 flex items-center justify-center rounded-lg">
+            <div id="promotion-modal" class="hidden absolute inset-0 z-40 flex items-center justify-center rounded-lg modal-overlay">
                 <div class="bg-slate-800 p-4 rounded-xl shadow-2xl border border-slate-600 flex flex-col items-center animate-bounce-in">
                     <h3 class="text-white font-bold mb-4">Choisir une pièce</h3>
-                    <div class="flex space-x-4" id="promotion-options">
-                        <!-- Les pièces seront injectées ici -->
-                    </div>
+                    <div class="flex space-x-4" id="promotion-options"></div>
                 </div>
             </div>
         </div>
 
-        <!-- Joueur (Vous) -->
+        <!-- Joueur Bas (Vous / Joueur Historique) -->
         <div class="w-full flex justify-between items-start mt-2 px-1">
             <div class="flex items-center space-x-2">
-                <div class="w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center border border-green-400/50">
-                    <i class="fas fa-user text-green-400"></i>
+                <div class="w-8 h-8 bg-slate-700 rounded flex items-center justify-center border border-slate-600 relative">
+                    <i class="fas fa-user text-slate-400"></i>
+                    <div id="bottom-color-indicator" class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border border-slate-500 shadow-sm flex items-center justify-center bg-black">
+                        <i class="fas fa-chess-pawn text-[8px] text-white"></i>
+                    </div>
                 </div>
                 <div class="flex flex-col leading-tight">
-                    <span id="bottom-player-name" class="text-sm font-semibold">Vous</span>
-                    <span id="bottom-player-rating" class="text-xs text-gray-400 font-mono"></span>
+                    <div class="flex items-center">
+                        <span id="bottom-player-name" class="text-sm font-bold text-white">Joueur</span>
+                        <span id="bottom-player-color-text" class="ml-2 text-[10px] uppercase font-bold text-slate-500 bg-slate-800 px-1 rounded border border-slate-700">Blanc</span>
+                    </div>
+                    <span id="bottom-player-rating" class="text-xs text-slate-400 font-mono"></span>
                 </div>
             </div>
+            <!-- INDICATEUR TOUR (RESTAURÉ) -->
              <div id="bottom-indicator" class="hidden px-2 py-0.5 bg-green-500 text-white text-xs font-bold rounded animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]">
                 À votre tour
             </div>
@@ -192,23 +185,68 @@
 
     </div>
 
+    <!-- MODALE UTILISATEUR -->
+    <div id="user-modal" class="hidden fixed inset-0 z-[100] modal-overlay flex flex-col items-center justify-center p-4">
+        <div class="bg-slate-900 w-full max-w-lg h-[90vh] rounded-2xl shadow-2xl border border-slate-700 flex flex-col overflow-hidden">
+            <div class="p-4 bg-slate-800 border-b border-slate-700 flex justify-between items-center shrink-0">
+                <h2 class="text-lg font-bold text-blue-400"><i class="fas fa-chart-line mr-2"></i>Compte & Stats</h2>
+                <button id="close-user-modal" class="text-gray-400 hover:text-white px-2 text-xl">&times;</button>
+            </div>
+            <div class="flex-grow overflow-y-auto p-4 custom-scrollbar space-y-6">
+                <div id="login-section" class="space-y-4">
+                    <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                        <label class="block text-xs font-bold text-gray-400 mb-2 uppercase">Lichess API Token</label>
+                        <input type="password" id="api-token-input" class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-sm text-white focus:border-blue-500 focus:outline-none mb-3" placeholder="Collez votre token ici...">
+                        <div class="flex justify-between items-center">
+                            <a href="https://lichess.org/account/oauth/token" target="_blank" class="text-xs text-blue-400 underline hover:text-blue-300">Créer un token</a>
+                            <button id="save-token-btn" class="bg-green-600 hover:bg-green-500 text-white px-4 py-1.5 rounded text-sm font-bold transition">Connexion</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="profile-section" class="hidden space-y-6">
+                    <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center border-2 border-blue-500 text-xl font-bold text-blue-300" id="profile-avatar">?</div>
+                            <div>
+                                <div id="profile-username" class="font-bold text-lg">Joueur</div>
+                                <div class="text-xs text-green-400 flex items-center"><i class="fas fa-circle text-[8px] mr-1"></i> Connecté</div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-xs text-gray-400 uppercase">Puzzle ELO</div>
+                            <div id="profile-rating" class="text-2xl font-mono font-bold text-yellow-400">---</div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                        <h3 class="text-sm font-bold text-gray-300 mb-4 border-b border-slate-700 pb-2">Progression (30 jours)</h3>
+                        <div class="h-32 w-full flex items-end justify-between space-x-1" id="rating-chart-container">
+                            <div class="w-full h-full flex items-center justify-center text-gray-500 text-xs italic">Chargement...</div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+                        <h3 class="text-sm font-bold text-gray-300 p-4 border-b border-slate-700 bg-slate-800/50">Performance par Thème</h3>
+                        <div id="themes-stats-list" class="divide-y divide-slate-700 max-h-64 overflow-y-auto custom-scrollbar"></div>
+                    </div>
+                    <button id="logout-btn" class="w-full py-2 text-red-400 text-sm hover:bg-slate-800 rounded border border-slate-700 transition">Se déconnecter</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- FOOTER -->
     <div class="w-full bg-slate-800 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-10 p-4 flex-none border-t border-slate-700">
         <div id="themes-container" class="info-transition blur-info">
             <div id="puzzle-themes" class="flex flex-wrap gap-1 mb-4 justify-center max-w-md mx-auto min-h-[1.5rem]"></div>
         </div>
-
         <div class="grid grid-cols-4 gap-3 max-w-md mx-auto">
             <button id="help-btn" class="col-span-1 bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white font-bold py-3 rounded-xl transition shadow flex flex-col items-center justify-center disabled:opacity-40 disabled:saturate-0" title="Aide">
                 <i id="help-icon" class="fas fa-question-circle mb-1 text-xl"></i>
                 <span id="help-text" class="text-[10px] uppercase tracking-wider">Aide</span>
             </button>
-            
             <button id="retry-btn" class="col-span-1 bg-slate-600 hover:bg-slate-500 active:bg-slate-700 text-white font-bold py-3 rounded-xl transition shadow flex flex-col items-center justify-center disabled:opacity-40 disabled:saturate-0" title="Réessayer">
                 <i class="fas fa-undo mb-1 text-xl"></i>
                 <span class="text-[10px] uppercase tracking-wider">Reset</span>
             </button>
-            
             <button id="next-btn" class="col-span-2 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition shadow flex items-center justify-center space-x-2 disabled:opacity-40 disabled:bg-slate-700 disabled:text-gray-500">
                 <span>Suivant</span>
                 <i class="fas fa-arrow-right"></i>
@@ -216,12 +254,10 @@
         </div>
     </div>
 
-    <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
     <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
 
     <script>
-        // --- AUDIO ---
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx;
         function initAudio() { if (!audioCtx) audioCtx = new AudioContext(); if (audioCtx.state === 'suspended') audioCtx.resume(); }
@@ -249,162 +285,180 @@
             }
         }
 
-        // --- MOCK ---
         const MOCK_PUZZLES = [
             { "game": { "id": "O8sz7nS8", "pgn": "d4 d5 c4 e6 Nc3 Bb4 Nf3 Nf6 e3 Ne4 Qc2 c6 Bd3 f5 O-O O-O Ne5 Nd7 Nxd7 Bxd7 f3 Nxc3 bxc3 Bd6 e4 fxe4 fxe4 dxe4 Bxe4", "players": [ { "name": "euphrates7", "rating": 1988, "color": "white" }, { "name": "ahmadsoltani", "rating": 1927, "color": "black" } ] }, "puzzle": { "id": "f8M0Z", "rating": 1939, "solution": ["d6h2", "g1h2", "f8f1", "e4h7", "g8h8"], "themes": ["deflection", "middlegame", "crushing", "long", "kingsideAttack"], "initialPly": 28 } },
             { "game": { "id": "BMh79XZA", "pgn": "e4 e6 d4 g6 Be3 Bg7 Qd2 Ne7 h4 h5 Nc3 d5 O-O-O dxe4 Nxe4 b6 Nh3 Bb7 Neg5 Nf5 Nf4 Nxe3 fxe3 O-O Bc4 Re8 Qe2 Bh6 g4 Bxg5 hxg5 Bxh1 Rxh1 Qxg5 gxh5 Qh6 Qg2 g5 Nh3 Nd7 Nxg5 Kf8 Rf1 f5 Bxe6 Ke7 Qc6 Rad8 Rxf5 Rf8 Bxd7", "players": [ { "name": "Arxeuz", "rating": 2063, "color": "white" }, { "name": "CarlosAguilar", "rating": 2109, "color": "black" } ] }, "puzzle": { "id": "Ai8r1", "rating": 1583, "solution": ["h6c6", "d7c6", "f8f5"], "themes": ["middlegame", "short", "advantage"], "initialPly": 50 } }
         ];
 
-        // --- VARIABLES ---
         let board = null, game = new Chess(), puzzles = [], currentPuzzleIndex = -1, currentSolution = [], isPuzzleActive = false;
         let selectedSquare = null, hintState = 0, statusTimeout = null, isInfoVisible = false;
-        let pendingPromotion = null; // Stocke {source, target} en attente
+        let pendingPromotion = null;
+        let userToken = localStorage.getItem('lichess_token') || null;
+        let currentUser = null;
 
-        // --- DOM ---
         const els = {
             rating: document.getElementById('puzzle-rating'), ratingContainer: document.getElementById('rating-container'),
             themes: document.getElementById('puzzle-themes'), themesContainer: document.getElementById('themes-container'),
             toggleInfoBtn: document.getElementById('toggle-info-btn'), infoIcon: document.getElementById('info-icon'),
-            topName: document.getElementById('top-player-name'), topRating: document.getElementById('top-player-rating'), topInd: document.getElementById('top-indicator'),
-            bottomName: document.getElementById('bottom-player-name'), bottomRating: document.getElementById('bottom-player-rating'), bottomInd: document.getElementById('bottom-indicator'),
+            topName: document.getElementById('top-player-name'), topRating: document.getElementById('top-player-rating'),
+            bottomName: document.getElementById('bottom-player-name'), bottomRating: document.getElementById('bottom-player-rating'),
             status: document.getElementById('status-message'), nextBtn: document.getElementById('next-btn'), retryBtn: document.getElementById('retry-btn'),
             helpBtn: document.getElementById('help-btn'), helpIcon: document.getElementById('help-icon'), helpText: document.getElementById('help-text'),
-            demoBadge: document.getElementById('demo-badge'),
-            promotionModal: document.getElementById('promotion-modal'), promotionOptions: document.getElementById('promotion-options')
+            demoBadge: document.getElementById('demo-badge'), promotionModal: document.getElementById('promotion-modal'), promotionOptions: document.getElementById('promotion-options'),
+            userBtn: document.getElementById('user-btn'), userStatusDot: document.getElementById('user-status-dot'),
+            userModal: document.getElementById('user-modal'), closeUserModal: document.getElementById('close-user-modal'),
+            loginSection: document.getElementById('login-section'), profileSection: document.getElementById('profile-section'),
+            apiTokenInput: document.getElementById('api-token-input'), saveTokenBtn: document.getElementById('save-token-btn'), logoutBtn: document.getElementById('logout-btn'),
+            profileAvatar: document.getElementById('profile-avatar'), profileUsername: document.getElementById('profile-username'), profileRating: document.getElementById('profile-rating'),
+            ratingChartContainer: document.getElementById('rating-chart-container'), themesStatsList: document.getElementById('themes-stats-list'),
+            // Elements restaurés
+            topInd: document.getElementById('top-indicator'), bottomInd: document.getElementById('bottom-indicator'),
+            userEloBadge: document.getElementById('user-elo-badge'), headerUserElo: document.getElementById('header-user-elo'),
+            topColorText: document.getElementById('top-player-color-text'), bottomColorText: document.getElementById('bottom-player-color-text'),
+            topColorIndicator: document.getElementById('top-color-indicator'), bottomColorIndicator: document.getElementById('bottom-color-indicator')
         };
 
         $(document).ready(function() {
-            initBoard();
-            attachEvents();
-            fetchPuzzles();
+            initBoard(); attachEvents(); fetchPuzzles(); checkUserAuth();
             $(document).on('click touchstart', function() { initAudio(); });
         });
 
         function initBoard() {
-            const config = {
-                draggable: false, // DRAG & DROP DÉSACTIVÉ !
-                position: 'start',
-                pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
-            };
-            board = Chessboard('myBoard', config);
+            board = Chessboard('myBoard', { draggable: false, position: 'start', pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png' });
             $(window).resize(board.resize);
         }
 
         function attachEvents() {
-            $('#next-btn').on('click', nextPuzzle);
-            $('#retry-btn').on('click', retryPuzzle);
-            $('#help-btn').on('click', handleHelpClick);
-            $('#toggle-info-btn').on('click', toggleInfo);
+            $('#next-btn').on('click', nextPuzzle); $('#retry-btn').on('click', retryPuzzle); $('#help-btn').on('click', handleHelpClick); $('#toggle-info-btn').on('click', toggleInfo);
+            $('#myBoard').on('click', '.square-55d63', function() { if (!isPuzzleActive) return; handleSquareClick($(this).attr('data-square')); });
+            $('#user-btn').on('click', () => { $('#user-modal').removeClass('hidden'); if (userToken) fetchUserStats(); });
+            $('#close-user-modal').on('click', () => $('#user-modal').addClass('hidden'));
+            $('#save-token-btn').on('click', handleLogin); $('#logout-btn').on('click', handleLogout);
+        }
 
-            // GESTIONNAIRE DE CLIC UNIQUE (Ordinateur & Mobile)
-            $('#myBoard').on('click', '.square-55d63', function() {
-                if (!isPuzzleActive) return;
-                const square = $(this).attr('data-square');
-                handleSquareClick(square);
+        async function checkUserAuth() {
+            if (userToken) {
+                try {
+                    await fetchUserProfile();
+                    els.userStatusDot.classList.replace('bg-red-500', 'bg-green-500');
+                    els.loginSection.classList.add('hidden'); els.profileSection.classList.remove('hidden');
+                } catch (e) { console.error(e); handleLogout(); }
+            } else els.userStatusDot.classList.replace('bg-green-500', 'bg-red-500');
+        }
+
+        async function handleLogin() {
+            const token = els.apiTokenInput.value.trim();
+            if (!token) return alert("Token requis.");
+            userToken = token;
+            try {
+                await fetchUserProfile();
+                localStorage.setItem('lichess_token', token);
+                els.userStatusDot.classList.replace('bg-red-500', 'bg-green-500');
+                els.loginSection.classList.add('hidden'); els.profileSection.classList.remove('hidden');
+                fetchUserStats();
+            } catch (e) { alert("Erreur."); userToken = null; }
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('lichess_token'); userToken = null; currentUser = null;
+            els.apiTokenInput.value = ""; els.userStatusDot.classList.replace('bg-green-500', 'bg-red-500');
+            els.loginSection.classList.remove('hidden'); els.profileSection.classList.add('hidden');
+            els.userEloBadge.classList.add('hidden');
+        }
+
+        async function fetchUserProfile() {
+            const res = await fetch('https://lichess.org/api/account', { headers: { 'Authorization': `Bearer ${userToken}` } });
+            if (!res.ok) throw new Error("Auth failed");
+            const data = await res.json();
+            currentUser = data;
+            
+            els.profileUsername.innerText = data.username;
+            els.profileRating.innerText = data.perfs.puzzle.rating;
+            els.profileAvatar.innerText = data.username.charAt(0).toUpperCase();
+            
+            els.headerUserElo.innerText = data.perfs.puzzle.rating;
+            els.userEloBadge.classList.remove('hidden');
+        }
+
+        async function fetchUserStats() {
+            if (!currentUser) return;
+            try {
+                const d = await (await fetch(`https://lichess.org/api/puzzle/dashboard/30`, { headers: { 'Authorization': `Bearer ${userToken}` } })).json();
+                renderThemeStats(d.global, d.themes);
+            } catch(e){}
+            try {
+                const h = await (await fetch(`https://lichess.org/api/user/${currentUser.username}/rating-history`)).json();
+                const ph = h.find(x => x.name === "Puzzle"); if(ph) renderRatingChart(ph.points);
+            } catch(e){}
+        }
+
+        function renderRatingChart(points) {
+            const recent = points.slice(-30);
+            if (recent.length < 2) { els.ratingChartContainer.innerHTML = '<div class="text-xs text-gray-500">Données insuffisantes</div>'; return; }
+            const ratings = recent.map(p => p[3]), min = Math.min(...ratings), max = Math.max(...ratings), range = max - min || 1, w = els.ratingChartContainer.clientWidth, h = els.ratingChartContainer.clientHeight;
+            let svg = `<svg width="100%" height="100%" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">`;
+            let path = `M 0 ${h - ((ratings[0] - min) / range * h)}`;
+            const step = w / (ratings.length - 1);
+            ratings.forEach((r, i) => { const x = i * step, y = h - ((r - min) / range * h); path += ` L ${x} ${y}`; svg += `<circle cx="${x}" cy="${y}" r="2" fill="#3b82f6" />`; });
+            path += `" fill="none" stroke="#3b82f6" stroke-width="2" />`; svg += `<path d="${path}`; svg += `</svg>`;
+            els.ratingChartContainer.innerHTML = svg;
+        }
+
+        function renderThemeStats(global, themes) {
+            els.themesStatsList.innerHTML = '';
+            Object.entries(themes).sort(([, a], [, b]) => b.performance - a.performance).forEach(([key, data]) => {
+                const wr = Math.round((data.results.nbWins / data.results.nbGames) * 100);
+                const tn = key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1').trim();
+                els.themesStatsList.insertAdjacentHTML('beforeend', `<div class="p-3 flex items-center justify-between hover:bg-slate-700/50 transition"><div><div class="font-bold text-sm text-gray-200">${tn}</div><div class="text-[10px] text-gray-500">${data.results.nbGames} puzzles</div></div><div class="text-right"><div class="text-blue-400 font-mono font-bold">${data.performance}</div><div class="text-[10px] ${wr >= 50 ? 'text-green-400' : 'text-red-400'}">${wr}% réussite</div></div></div>`);
             });
         }
 
-        // --- FETCH ---
         async function fetchPuzzles() {
-            showStatus("Récupération...", "info");
-            els.nextBtn.disabled = true;
-            els.demoBadge.classList.add('hidden');
+            showStatus("Récupération...", "info"); els.nextBtn.disabled = true; els.demoBadge.classList.add('hidden');
             try {
                 const r = await fetch('https://lichess.org/api/puzzle/batch/mix?difficulty=harder&nb=50');
                 if (!r.ok) throw new Error("Erreur réseau");
                 const d = await r.json();
                 let np = Array.isArray(d) ? d : (d.puzzles && Array.isArray(d.puzzles) ? d.puzzles : []);
                 if (np.length > 0) { puzzles = np; currentPuzzleIndex = -1; nextPuzzle(); } else throw new Error("Pas de données");
-            } catch (e) {
-                console.warn(e); showStatus("Mode Démo", "error"); els.demoBadge.classList.remove('hidden');
-                puzzles = MOCK_PUZZLES; currentPuzzleIndex = -1; nextPuzzle();
-            }
+            } catch (e) { console.warn(e); showStatus("Mode Démo", "error"); els.demoBadge.classList.remove('hidden'); puzzles = MOCK_PUZZLES; currentPuzzleIndex = -1; nextPuzzle(); }
         }
 
-        // --- UI UTILS ---
         function toggleInfo() { isInfoVisible = !isInfoVisible; updateInfoVisibility(); }
         function updateInfoVisibility() {
-            if (isInfoVisible) {
-                els.ratingContainer.classList.remove('blur-info'); els.themesContainer.classList.remove('blur-info');
-                els.infoIcon.className = "fas fa-eye"; els.toggleInfoBtn.classList.add('text-white');
-            } else {
-                els.ratingContainer.classList.add('blur-info'); els.themesContainer.classList.add('blur-info');
-                els.infoIcon.className = "fas fa-eye-slash"; els.toggleInfoBtn.classList.remove('text-white');
-            }
+            if (isInfoVisible) { els.ratingContainer.classList.remove('blur-info'); els.themesContainer.classList.remove('blur-info'); els.infoIcon.className = "fas fa-eye"; els.toggleInfoBtn.classList.add('text-white'); } 
+            else { els.ratingContainer.classList.add('blur-info'); els.themesContainer.classList.add('blur-info'); els.infoIcon.className = "fas fa-eye-slash"; els.toggleInfoBtn.classList.remove('text-white'); }
         }
-        function resetHelpButton() {
-            hintState = 0; els.helpText.innerText = "AIDE"; els.helpIcon.className = "fas fa-question-circle mb-1 text-xl";
-            $('.square-55d63').removeClass('highlight-hint');
-        }
+        function resetHelpButton() { hintState = 0; els.helpText.innerText = "AIDE"; els.helpIcon.className = "fas fa-question-circle mb-1 text-xl"; $('.square-55d63').removeClass('highlight-hint'); }
 
-        // --- LOGIQUE INTERACTION (TAP/CLICK ONLY) ---
         function handleSquareClick(square) {
             const piece = game.get(square);
-            
-            // 1. Déjà une sélection
             if (selectedSquare) {
-                // Clic sur la même case -> Désélection
-                if (selectedSquare === square) { 
-                    deselectSquare(); 
-                    return; 
-                }
-                
-                // Clic sur une pièce alliée -> Changement de sélection
-                if (piece && piece.color === game.turn()) { 
-                    selectSquare(square); 
-                    return; 
-                }
-
-                // Tentative de mouvement
+                if (selectedSquare === square) { deselectSquare(); return; }
+                if (piece && piece.color === game.turn()) { selectSquare(square); return; }
                 checkMove(selectedSquare, square);
-                // Note: On ne désélectionne PAS ici, checkMove le fera si le coup est valide ou invalide
-            } 
-            // 2. Pas de sélection
-            else {
-                if (piece && piece.color === game.turn()) selectSquare(square);
-            }
+            } else { if (piece && piece.color === game.turn()) selectSquare(square); }
         }
 
         function checkMove(source, target) {
-            // Vérifier si c'est un coup légal (sans le jouer encore)
             const moves = game.moves({ verbose: true });
             const move = moves.find(m => m.from === source && m.to === target);
-
-            if (!move) {
-                // Coup illégal -> On désélectionne et feedback
-                deselectSquare();
-                // Optionnel: Petit son d'erreur ou rien
-                return;
-            }
-
-            // Vérifier PROMOTION
-            if (move.flags.includes('p')) {
-                // Ouvrir la modale
-                pendingPromotion = { source, target };
-                openPromotionModal(game.turn());
-            } else {
-                // Coup normal
-                attemptMove(source, target);
-                deselectSquare();
-            }
+            if (!move) { deselectSquare(); return; }
+            if (move.flags.includes('p')) { pendingPromotion = { source, target }; openPromotionModal(game.turn()); } 
+            else { attemptMove(source, target); deselectSquare(); }
         }
 
-        // --- GESTION PROMOTION ---
         function openPromotionModal(color) {
             els.promotionOptions.innerHTML = '';
-            const pieces = ['q', 'r', 'b', 'n']; // Reine, Tour, Fou, Cavalier
-            
-            pieces.forEach(p => {
+            ['q', 'r', 'b', 'n'].forEach(p => {
                 const img = document.createElement('img');
                 img.src = `https://chessboardjs.com/img/chesspieces/wikipedia/${color}${p.toUpperCase()}.png`;
                 img.className = "w-12 h-12 bg-slate-600 rounded hover:bg-slate-500 promo-piece";
                 img.onclick = () => confirmPromotion(p);
                 els.promotionOptions.appendChild(img);
             });
-
             els.promotionModal.classList.remove('hidden');
         }
-
         function confirmPromotion(pieceType) {
             if (!pendingPromotion) return;
             els.promotionModal.classList.add('hidden');
@@ -413,81 +467,84 @@
             deselectSquare();
         }
 
-        // --- VISUALS ---
-        function selectSquare(square) {
-            deselectSquare();
-            selectedSquare = square;
-            $(`#myBoard .square-${square}`).addClass('highlight-selected');
-            showLegalMoves(square);
-        }
-
-        function deselectSquare() {
-            if (selectedSquare) $(`#myBoard .square-${selectedSquare}`).removeClass('highlight-selected');
-            selectedSquare = null;
-            hideLegalMoves();
-        }
-
-        function showLegalMoves(square) {
-            hideLegalMoves();
-            const moves = game.moves({ square: square, verbose: true });
-            moves.forEach(move => {
-                const cls = (move.flags.includes('c') || move.flags.includes('e')) ? 'hint-legal-capture' : 'hint-legal-move';
-                $(`#myBoard .square-${move.to}`).addClass(cls);
-            });
-        }
+        function selectSquare(square) { deselectSquare(); selectedSquare = square; $(`#myBoard .square-${square}`).addClass('highlight-selected'); showLegalMoves(square); }
+        function deselectSquare() { if (selectedSquare) $(`#myBoard .square-${selectedSquare}`).removeClass('highlight-selected'); selectedSquare = null; hideLegalMoves(); }
+        function showLegalMoves(square) { hideLegalMoves(); const moves = game.moves({ square: square, verbose: true }); moves.forEach(move => { const cls = (move.flags.includes('c') || move.flags.includes('e')) ? 'hint-legal-capture' : 'hint-legal-move'; $(`#myBoard .square-${move.to}`).addClass(cls); }); }
         function hideLegalMoves() { $('.square-55d63').removeClass('hint-legal-move hint-legal-capture'); }
+        
         function highlightLastMove(s, t) {
+            // Nettoyage immédiat
+            $('.square-55d63').removeClass('highlight-move');
+            
+            // Application différée pour laisser le temps au redraw du board
             setTimeout(() => {
                 $('.square-55d63').removeClass('highlight-move');
                 $(`#myBoard .square-${s}`).addClass('highlight-move');
                 $(`#myBoard .square-${t}`).addClass('highlight-move');
-            }, 10);
+            }, 100); // 100ms délai pour être sûr
         }
 
-        // --- GAME LOGIC ---
-        function nextPuzzle() {
-            currentPuzzleIndex++;
-            if (currentPuzzleIndex >= puzzles.length) { fetchPuzzles(); return; }
-            loadPuzzle(puzzles[currentPuzzleIndex]);
-        }
-
-        function retryPuzzle() {
-            if (currentPuzzleIndex >= 0) { loadPuzzle(puzzles[currentPuzzleIndex]); showStatus("Réessayez", "info"); }
-        }
+        function nextPuzzle() { currentPuzzleIndex++; if (currentPuzzleIndex >= puzzles.length) { fetchPuzzles(); return; } loadPuzzle(puzzles[currentPuzzleIndex]); }
+        function retryPuzzle() { if (currentPuzzleIndex >= 0) { loadPuzzle(puzzles[currentPuzzleIndex]); showStatus("Réessayez", "info"); } }
 
         function loadPuzzle(pd) {
             game.reset();
             if (!game.load_pgn(pd.game.pgn)) { showStatus("Erreur PGN", "error"); setTimeout(nextPuzzle, 1000); return; }
-            
             let h = game.history({verbose:true}), setup=null;
-            game.reset();
-            for(let i=0; i<pd.puzzle.initialPly; i++) game.move(h[i]);
+            game.reset(); for(let i=0; i<pd.puzzle.initialPly; i++) game.move(h[i]);
             if(h[pd.puzzle.initialPly]) { setup=h[pd.puzzle.initialPly]; game.move(setup); }
 
             board.position(game.fen(), false);
-            board.orientation(game.turn()==='w'?'white':'black');
-
-            currentSolution = [...pd.puzzle.solution];
-            isPuzzleActive = true;
-            deselectSquare(); resetHelpButton(); isInfoVisible=false; updateInfoVisibility();
-
-            if(setup) { highlightLastMove(setup.from, setup.to); playSound('move'); }
-
-            els.rating.innerText = pd.puzzle.rating;
-            renderThemes(pd.puzzle.themes);
             
-            const wp = pd.game.players.find(p=>p.color==='white')||{}, bp = pd.game.players.find(p=>p.color==='black')||{};
-            if(board.orientation()==='white') updateInfos(wp, bp); else updateInfos(bp, wp);
+            // Couleur Joueur
+            const playerColor = game.turn() === 'w' ? 'white' : 'black';
+            board.orientation(playerColor);
+
+            currentSolution = [...pd.puzzle.solution]; isPuzzleActive = true; deselectSquare(); resetHelpButton(); isInfoVisible=false; updateInfoVisibility();
+            
+            // Application du highlight APRÈS l'orientation
+            if(setup) { 
+                highlightLastMove(setup.from, setup.to); 
+                playSound('move'); 
+            }
+
+            els.rating.innerText = pd.puzzle.rating; renderThemes(pd.puzzle.themes);
+            
+            const wp = pd.game.players.find(p=>p.color==='white')||{name:'?', rating:'?'};
+            const bp = pd.game.players.find(p=>p.color==='black')||{name:'?', rating:'?'};
+            
+            if (playerColor === 'white') {
+                updateInfos(wp, bp, 'Blanc', 'Noir'); 
+            } else {
+                updateInfos(bp, wp, 'Noir', 'Blanc');
+            }
             
             updateTurn();
             els.nextBtn.disabled=true; els.retryBtn.disabled=false; els.helpBtn.disabled=false;
             hideStatus();
         }
 
-        function updateInfos(b, t) {
-            els.bottomName.innerText = b.name||'?'; els.bottomRating.innerText = `(${b.rating||'?'})`;
-            els.topName.innerText = t.name||'?'; els.topRating.innerText = `(${t.rating||'?'})`;
+        function updateInfos(b, t, bColor, tColor) {
+            els.bottomName.innerText = b.name; els.bottomRating.innerText = `(${b.rating})`; els.bottomColorText.innerText = bColor;
+            els.topName.innerText = t.name; els.topRating.innerText = `(${t.rating})`; els.topColorText.innerText = tColor;
+
+            if (bColor === 'Blanc') {
+                els.bottomColorIndicator.innerHTML = `<i class="fas fa-chess-pawn text-[8px] text-slate-800"></i>`;
+                els.bottomColorIndicator.className = "absolute -bottom-1 -right-1 w-4 h-4 rounded-full border border-slate-500 shadow-sm flex items-center justify-center bg-white";
+            } else {
+                els.bottomColorIndicator.innerHTML = `<i class="fas fa-chess-pawn text-[8px] text-white"></i>`;
+                els.bottomColorIndicator.className = "absolute -bottom-1 -right-1 w-4 h-4 rounded-full border border-slate-500 shadow-sm flex items-center justify-center bg-black";
+            }
+
+            if (tColor === 'Blanc') {
+                els.topColorIndicator.innerHTML = `<i class="fas fa-chess-pawn text-[8px] text-slate-800"></i>`;
+                els.topColorIndicator.className = "absolute -bottom-1 -right-1 w-4 h-4 rounded-full border border-slate-500 shadow-sm flex items-center justify-center bg-white";
+            } else {
+                els.topColorIndicator.innerHTML = `<i class="fas fa-chess-pawn text-[8px] text-white"></i>`;
+                els.topColorIndicator.className = "absolute -bottom-1 -right-1 w-4 h-4 rounded-full border border-slate-500 shadow-sm flex items-center justify-center bg-black";
+            }
         }
+
         function renderThemes(t) {
             els.themes.innerHTML=''; if(!t)return;
             t.forEach(th=>{
@@ -496,53 +553,37 @@
                 els.themes.appendChild(s);
             });
         }
+
         function updateTurn() {
-            if(isPuzzleActive) { els.bottomInd.classList.remove('hidden'); els.topInd.classList.add('hidden'); }
-            else els.bottomInd.classList.add('hidden');
+            // Logique de badge "À votre tour" restaurée
+            if (isPuzzleActive) {
+                els.bottomInd.classList.remove('hidden'); els.topInd.classList.add('hidden');
+            } else {
+                els.bottomInd.classList.add('hidden');
+            }
         }
 
-        // --- MOVE EXECUTION ---
         function attemptMove(source, target, promotionPiece = 'q') {
             if (!isPuzzleActive) return false;
-
             let move = game.move({ from: source, to: target, promotion: promotionPiece });
-            if (move === null) {
-                // Coup invalide
-                playSound('error'); showStatus("Coup invalide", "error"); return false;
-            }
-
-            let uci = source + target;
-            if (move.promotion) uci += move.promotion;
-
+            if (move === null) { playSound('error'); showStatus("Coup invalide", "error"); return false; }
+            let uci = source + target; if (move.promotion) uci += move.promotion;
             if (uci === currentSolution[0]) {
-                // BON COUP
-                currentSolution.shift();
-                board.position(game.fen());
-                highlightLastMove(source, target);
-                clearHints(); playSound('move');
-
-                if (currentSolution.length === 0) {
-                    playSound('win'); winPuzzle();
-                } else {
+                currentSolution.shift(); board.position(game.fen()); highlightLastMove(source, target); clearHints(); playSound('move');
+                if (currentSolution.length === 0) { playSound('win'); winPuzzle(); } 
+                else {
                     els.bottomInd.classList.add('hidden'); els.topInd.classList.remove('hidden');
                     setTimeout(playOpponent, 600);
                 }
                 return true;
-            } else {
-                // MAUVAIS COUP
-                game.undo(); board.position(game.fen());
-                playSound('error'); showStatus("Mauvais coup", "error");
-                return false;
-            }
+            } else { game.undo(); board.position(game.fen()); playSound('error'); showStatus("Mauvais coup", "error"); return false; }
         }
 
         function playOpponent() {
             if (currentSolution.length === 0) return;
-            const uci = currentSolution[0];
-            const s = uci.substring(0,2), t = uci.substring(2,4), p = uci.length>4?uci.substring(4,5):undefined;
+            const uci = currentSolution[0], s = uci.substring(0,2), t = uci.substring(2,4), p = uci.length>4?uci.substring(4,5):undefined;
             game.move({from:s, to:t, promotion:p});
-            board.position(game.fen());
-            highlightLastMove(s,t); playSound('move');
+            board.position(game.fen()); highlightLastMove(s,t); playSound('move');
             currentSolution.shift(); updateTurn();
         }
 
@@ -553,22 +594,16 @@
             els.bottomInd.classList.add('hidden'); els.topInd.classList.add('hidden');
         }
 
-        // --- HELPERS ---
         function handleHelpClick() {
             if(!isPuzzleActive || currentSolution.length===0) return;
             const m = currentSolution[0], s = m.substring(0,2), t = m.substring(2,4);
-            if(hintState===0) {
-                $('.square-55d63').removeClass('highlight-hint'); $(`#myBoard .square-${s}`).addClass('highlight-hint');
-                showStatus("Pièce indiquée", "info"); hintState=1; els.helpText.innerText="SOLUCE"; els.helpIcon.className="fas fa-lightbulb mb-1 text-xl";
-            } else attemptMove(s, t);
+            if(hintState===0) { $('.square-55d63').removeClass('highlight-hint'); $(`#myBoard .square-${s}`).addClass('highlight-hint'); showStatus("Pièce indiquée", "info"); hintState=1; els.helpText.innerText="SOLUCE"; els.helpIcon.className="fas fa-lightbulb mb-1 text-xl"; } else attemptMove(s, t);
         }
         function clearHints() { $('.square-55d63').removeClass('highlight-hint'); resetHelpButton(); }
         function showStatus(t, type) {
             if(statusTimeout) clearTimeout(statusTimeout); els.status.innerText=t;
-            els.status.className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-2 rounded-full font-bold shadow-2xl transition-all duration-300 opacity-100 translate-y-0 whitespace-nowrap border border-white/10 bg-slate-800/95 backdrop-blur text-sm";
-            if(type==='error') els.status.classList.add('text-red-400','border-red-500/30');
-            else if(type==='success') els.status.classList.add('text-green-400','border-green-500/30');
-            else els.status.classList.add('text-blue-200');
+            els.status.className="absolute top-12 left-1/2 transform -translate-x-1/2 z-50 px-6 py-2 rounded-full font-bold shadow-2xl transition-all duration-300 opacity-100 translate-y-0 whitespace-nowrap border border-white/10 bg-slate-800/95 backdrop-blur text-sm";
+            if(type==='error') els.status.classList.add('text-red-400','border-red-500/30'); else if(type==='success') els.status.classList.add('text-green-400','border-green-500/30'); else els.status.classList.add('text-blue-200');
             statusTimeout=setTimeout(()=>els.status.classList.replace('opacity-100','opacity-0'), 2000);
         }
         function hideStatus() { els.status.classList.replace('opacity-100','opacity-0'); }
