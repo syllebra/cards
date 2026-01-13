@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Lichess Tactiques V22 - Dashboard Stats</title>
+    <title>Lichess Tactiques V25 - Puzzles Default</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -95,7 +95,7 @@
             </div>
             
             <div class="flex items-center space-x-2">
-                <!-- Indicateur Sync (Nouveau) -->
+                <!-- Indicateur Sync -->
                 <div id="sync-indicator" class="hidden text-xs text-yellow-400 font-mono animate-pulse mr-2">
                     <i class="fas fa-sync fa-spin mr-1"></i>Sync...
                 </div>
@@ -249,14 +249,21 @@
                         </div>
                     </div>
 
+                    <!-- Graphique Progression -->
                     <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
-                        <h3 class="text-sm font-bold text-gray-300 mb-4 border-b border-slate-700 pb-2">Progression (30 jours)</h3>
+                        <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-2">
+                            <h3 class="text-sm font-bold text-gray-300">Progression</h3>
+                            <select id="stats-type-select" class="bg-slate-900 border border-slate-600 text-xs rounded px-2 py-1 text-white focus:outline-none">
+                                <option value="Puzzles">Puzzles</option>
+                            </select>
+                        </div>
                         <div class="h-32 w-full flex items-end justify-between space-x-1" id="rating-chart-container">
                             <div class="w-full h-full flex items-center justify-center text-gray-500 text-xs italic">Chargement...</div>
                         </div>
                     </div>
+
                     <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-                        <h3 class="text-sm font-bold text-gray-300 p-4 border-b border-slate-700 bg-slate-800/50">Performance par Thème</h3>
+                        <h3 class="text-sm font-bold text-gray-300 p-4 border-b border-slate-700 bg-slate-800/50">Performance par Thème (30j)</h3>
                         <div id="themes-stats-list" class="divide-y divide-slate-700 max-h-64 overflow-y-auto custom-scrollbar"></div>
                     </div>
                     <button id="logout-btn" class="w-full py-2 text-red-400 text-sm hover:bg-slate-800 rounded border border-slate-700 transition">Se déconnecter</button>
@@ -328,7 +335,9 @@
         let userToken = localStorage.getItem('lichess_token') || null;
         let currentDifficulty = localStorage.getItem('puzzle_difficulty') || 'normal';
         let currentUser = null;
-        let hasFailed = false; // SUIVI ECHEC
+        let hasFailed = false;
+        
+        let userRatingHistory = [];
 
         const els = {
             rating: document.getElementById('puzzle-rating'), ratingContainer: document.getElementById('rating-container'),
@@ -351,7 +360,8 @@
             topColorIndicator: document.getElementById('top-color-indicator'), bottomColorIndicator: document.getElementById('bottom-color-indicator'),
             difficultySelect: document.getElementById('difficulty-select'),
             offlineStats: document.getElementById('offline-stats'), offlineCount: document.getElementById('offline-count'),
-            syncIndicator: document.getElementById('sync-indicator')
+            syncIndicator: document.getElementById('sync-indicator'),
+            statsTypeSelect: document.getElementById('stats-type-select')
         };
 
         $(document).ready(function() {
@@ -359,7 +369,7 @@
             els.difficultySelect.value = currentDifficulty;
             attachEvents(); 
             fetchPuzzles(); 
-            checkUserAuth(); // Sync happens here too
+            checkUserAuth();
             $(document).on('click touchstart', function() { initAudio(); });
         });
 
@@ -383,6 +393,10 @@
                 localStorage.setItem('puzzle_difficulty', currentDifficulty);
                 puzzles = []; currentPuzzleIndex = -1; fetchPuzzles();
             });
+
+            $('#stats-type-select').on('change', function() {
+                renderChartForType(this.value);
+            });
         }
 
         async function checkUserAuth() {
@@ -391,7 +405,7 @@
                     await fetchUserProfile();
                     els.userStatusDot.classList.replace('bg-red-500', 'bg-green-500');
                     els.loginSection.classList.add('hidden'); els.profileSection.classList.remove('hidden');
-                    syncOfflineResults(); // Trigger sync
+                    syncOfflineResults();
                 } catch (e) { console.error(e); handleLogout(); }
             } else els.userStatusDot.classList.replace('bg-green-500', 'bg-red-500');
         }
@@ -412,29 +426,19 @@
         }
 
         function handleLogout() {
-            localStorage.removeItem('lichess_token'); userToken = null; currentUser = null;
+            localStorage.removeItem('lichess_token'); userToken = null; currentUser = null; userRatingHistory = [];
             els.apiTokenInput.value = ""; els.userStatusDot.classList.replace('bg-green-500', 'bg-red-500');
             els.loginSection.classList.remove('hidden'); els.profileSection.classList.add('hidden');
             els.userEloBadge.classList.add('hidden');
             fetchPuzzles();
         }
 
-        // --- OFFLINE & SYNC LOGIC ---
-
         function handleResult(puzzleId, win) {
-            if (!userToken) return; // Pas de compte, pas de tracking
-            
-            // Nouvelle API Batch pour envoi immédiat
+            if (!userToken) return;
             fetch('https://lichess.org/api/puzzle/batch/mix?nb=0', {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${userToken}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    solutions: [{
-                        id: puzzleId,
-                        win: win,
-                        rated: true
-                    }]
-                })
+                body: JSON.stringify({ solutions: [{ id: puzzleId, win: win, rated: true }] })
             }).then(res => {
                 if (!res.ok) throw new Error("Sync failed");
                 console.log("Result synced:", puzzleId, win);
@@ -464,38 +468,20 @@
         async function syncOfflineResults() {
             let pending = JSON.parse(localStorage.getItem('lichess_offline_results') || '[]');
             if (pending.length === 0) return;
-
             els.syncIndicator.classList.remove('hidden');
-            
-            // Construction payload batch
-            const solutions = pending.map(p => ({
-                id: p.id,
-                win: p.win,
-                rated: true
-            }));
-
+            const solutions = pending.map(p => ({ id: p.id, win: p.win, rated: true }));
             try {
                 const res = await fetch('https://lichess.org/api/puzzle/batch/mix?nb=0', {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${userToken}`, 'Content-Type': 'application/json' },
                     body: JSON.stringify({ solutions: solutions })
                 });
-
                 if (!res.ok) throw new Error("Batch sync failed");
-
-                // Succès : on vide le storage
                 localStorage.removeItem('lichess_offline_results');
                 showStatus("Synchro terminée", "info");
-            } catch (e) {
-                console.warn("Sync failed", e);
-                // On garde pour la prochaine fois
-            } finally {
-                els.syncIndicator.classList.add('hidden');
-                updateOfflineUI();
-            }
+            } catch (e) { console.warn("Sync failed", e); } 
+            finally { els.syncIndicator.classList.add('hidden'); updateOfflineUI(); }
         }
-
-        // --- STANDARD API ---
 
         async function fetchUserProfile() {
             const res = await fetch('https://lichess.org/api/account', { headers: { 'Authorization': `Bearer ${userToken}` } });
@@ -513,32 +499,123 @@
 
         async function fetchUserStats() {
             if (!currentUser) return;
+            
+            // 1. Dashboard Themes
             try {
                 const d = await (await fetch(`https://lichess.org/api/puzzle/dashboard/30`, { headers: { 'Authorization': `Bearer ${userToken}` } })).json();
                 renderThemeStats(d.global, d.themes);
             } catch(e){}
+
+            // 2. Full Rating History
             try {
                 const h = await (await fetch(`https://lichess.org/api/user/${currentUser.username}/rating-history`)).json();
-                const ph = h.find(x => x.name === "Puzzle"); if(ph) renderRatingChart(ph.points);
-            } catch(e){}
+                userRatingHistory = h;
+                
+                // Remplir le select
+                const select = els.statsTypeSelect;
+                select.innerHTML = '';
+                
+                if (h.length === 0) {
+                    const option = document.createElement('option');
+                    option.innerText = "Pas de données";
+                    select.appendChild(option);
+                    return;
+                }
+
+                h.forEach(mode => {
+                    const option = document.createElement('option');
+                    option.value = mode.name;
+                    option.innerText = mode.name; // ex: Bullet, Blitz, Puzzle
+                    select.appendChild(option);
+                });
+
+                // Sélection par défaut : Puzzles
+                const hasPuzzles = h.some(x => x.name === 'Puzzles');
+                if (hasPuzzles) {
+                    select.value = 'Puzzles';
+                    renderChartForType('Puzzles');
+                } else {
+                    // Fallback si "Puzzles" n'existe pas
+                    const hasPuzzle = h.some(x => x.name === 'Puzzle');
+                    if (hasPuzzle) {
+                        select.value = 'Puzzle';
+                        renderChartForType('Puzzle');
+                    } else {
+                        select.value = h[0].name;
+                        renderChartForType(h[0].name);
+                    }
+                }
+
+            } catch(e){ console.warn("Erreur Historique", e); }
+        }
+
+        function renderChartForType(type) {
+            const data = userRatingHistory.find(x => x.name === type);
+            if (data) {
+                renderRatingChart(data.points);
+            } else {
+                els.ratingChartContainer.innerHTML = '<div class="text-xs text-gray-500">Aucune donnée pour ce mode</div>';
+            }
         }
 
         function renderRatingChart(points) {
-            const recent = points.slice(-30);
-            if (recent.length < 2) { els.ratingChartContainer.innerHTML = '<div class="text-xs text-gray-500">Données insuffisantes</div>'; return; }
-            const ratings = recent.map(p => p[3]), min = Math.min(...ratings), max = Math.max(...ratings), range = max - min || 1, w = els.ratingChartContainer.clientWidth, h = els.ratingChartContainer.clientHeight;
-            let svg = `<svg width="100%" height="100%" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">`;
-            let path = `M 0 ${h - ((ratings[0] - min) / range * h)}`;
-            const step = w / (ratings.length - 1);
-            ratings.forEach((r, i) => { const x = i * step, y = h - ((r - min) / range * h); path += ` L ${x} ${y}`; svg += `<circle cx="${x}" cy="${y}" r="2" fill="#3b82f6" />`; });
-            path += `" fill="none" stroke="#3b82f6" stroke-width="2" />`; svg += `<path d="${path}`; svg += `</svg>`;
+            if (!points || points.length < 2) { 
+                els.ratingChartContainer.innerHTML = '<div class="text-xs text-gray-500">Pas assez de données</div>'; 
+                return; 
+            }
+
+            // Conversion des données: [y, m, d, rating] -> {x: timestamp, y: rating}
+            const data = points.map(p => ({
+                x: new Date(p[0], p[1], p[2]).getTime(), // Mois p[1] commence à 0, c'est correct pour JS Date
+                y: p[3]
+            }));
+
+            // Calcul des min/max pour l'échelle
+            const minX = Math.min(...data.map(d => d.x));
+            const maxX = Math.max(...data.map(d => d.x));
+            const rangeX = maxX - minX || 1;
+
+            const minY = Math.min(...data.map(d => d.y));
+            const maxY = Math.max(...data.map(d => d.y));
+            const rangeY = maxY - minY || 1;
+            
+            // Dimensions
+            const w = els.ratingChartContainer.clientWidth;
+            const h = els.ratingChartContainer.clientHeight;
+            
+            // Construction du chemin SVG
+            let pathD = "";
+            
+            data.forEach((pt, i) => {
+                // Normalisation X et Y
+                const px = ((pt.x - minX) / rangeX) * w;
+                // Inversion Y car SVG 0 est en haut
+                const py = h - ((pt.y - minY) / rangeY) * h;
+                
+                if (i === 0) pathD += `M ${px} ${py}`;
+                else pathD += ` L ${px} ${py}`;
+            });
+
+            // SVG final
+            let svg = `
+            <svg width="100%" height="100%" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" class="overflow-visible">
+                <!-- Grille basique (optionnelle) -->
+                <line x1="0" y1="${h/2}" x2="${w}" y2="${h/2}" stroke="#ffffff" stroke-opacity="0.1" stroke-dasharray="4" />
+                
+                <!-- Ligne de progression -->
+                <path d="${pathD}" fill="none" stroke="#3b82f6" stroke-width="2" vector-effect="non-scaling-stroke" />
+                
+                <!-- Indicateur Dernier point -->
+                <circle cx="${((data[data.length-1].x - minX)/rangeX)*w}" cy="${h - ((data[data.length-1].y - minY)/rangeY)*h}" r="3" fill="#60a5fa" />
+            </svg>`;
+            
             els.ratingChartContainer.innerHTML = svg;
         }
 
         function renderThemeStats(global, themes) {
             els.themesStatsList.innerHTML = '';
             
-            // Stats globales (30 jours)
+            // Stats globales (30 jours) avec barre
             if(global) {
                  const gNb = global.nb;
                  const gPerf = global.performance;
@@ -546,32 +623,48 @@
                  const gWr = gNb > 0 ? Math.round((gWin/gNb)*100) : 0;
                  
                  els.themesStatsList.insertAdjacentHTML('beforeend', `
-                    <div class="p-3 bg-slate-700/30 border-b border-slate-700 flex items-center justify-between">
-                        <div><div class="font-bold text-sm text-yellow-400">Global (30 jours)</div></div>
-                        <div class="text-right">
-                            <span class="text-blue-400 font-mono font-bold mr-2">${gPerf}</span>
-                            <span class="text-[10px] ${gWr >= 50 ? 'text-green-400' : 'text-red-400'}">${gWr}% (${gNb})</span>
+                    <div class="p-4 bg-slate-700/50 border-b border-slate-600 mb-2">
+                        <div class="flex justify-between items-end mb-2">
+                            <div>
+                                <div class="text-xs text-slate-400 uppercase font-bold tracking-wider">Global (30j)</div>
+                                <div class="text-2xl font-bold text-white">${gWr}% <span class="text-sm text-slate-400 font-normal">réussite</span></div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-xl font-mono text-blue-400 font-bold">${gPerf}</div>
+                                <div class="text-xs text-slate-400">${gNb} puzzles</div>
+                            </div>
+                        </div>
+                        <div class="w-full bg-slate-800 rounded-full h-2.5">
+                            <div class="bg-gradient-to-r from-blue-500 to-green-400 h-2.5 rounded-full" style="width: ${gWr}%"></div>
                         </div>
                     </div>
                  `);
             }
 
-            // Stats par thème
+            // Stats par thème avec barres de progression
             Object.entries(themes).sort(([, a], [, b]) => b.results.performance - a.results.performance).forEach(([key, data]) => {
                 const res = data.results;
                 const wr = res.nb > 0 ? Math.round((res.firstWins / res.nb) * 100) : 0;
-                // Use provided theme name or beautify key
                 const tn = data.theme || key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1').trim();
                 
+                // Couleur barre
+                let barColor = 'bg-red-500';
+                if(wr >= 50) barColor = 'bg-yellow-500';
+                if(wr >= 70) barColor = 'bg-green-500';
+
                 els.themesStatsList.insertAdjacentHTML('beforeend', `
-                    <div class="p-3 flex items-center justify-between hover:bg-slate-700/50 transition">
-                        <div>
-                            <div class="font-bold text-sm text-gray-200">${tn}</div>
-                            <div class="text-[10px] text-gray-500">${res.nb} puzzles</div>
+                    <div class="p-3 hover:bg-slate-700/30 transition border-b border-slate-700/50 last:border-0">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="font-bold text-sm text-slate-200">${tn}</span>
+                            <span class="text-xs font-mono text-blue-300 font-bold">${res.performance}</span>
                         </div>
-                        <div class="text-right">
-                            <div class="text-blue-400 font-mono font-bold">${res.performance}</div>
-                            <div class="text-[10px] ${wr >= 50 ? 'text-green-400' : 'text-red-400'}">${wr}% réussite</div>
+                        <div class="flex items-center space-x-3">
+                            <div class="flex-grow bg-slate-800 rounded-full h-1.5">
+                                <div class="${barColor} h-1.5 rounded-full" style="width: ${wr}%"></div>
+                            </div>
+                            <div class="text-[10px] w-16 text-right text-slate-400">
+                                <span class="${wr >= 50 ? 'text-white font-bold' : ''}">${wr}%</span> / ${res.nb}
+                            </div>
                         </div>
                     </div>`);
             });
@@ -581,11 +674,8 @@
             showStatus("Récupération...", "info"); els.nextBtn.disabled = true; els.demoBadge.classList.add('hidden');
             try {
                 const headers = {};
-                if (userToken) {
-                    headers['Authorization'] = `Bearer ${userToken}`;
-                }
+                if (userToken) { headers['Authorization'] = `Bearer ${userToken}`; }
                 const r = await fetch(`https://lichess.org/api/puzzle/batch/mix?difficulty=${currentDifficulty}&nb=50`, { headers });
-                
                 if (!r.ok) throw new Error("Erreur réseau");
                 const d = await r.json();
                 let np = Array.isArray(d) ? d : (d.puzzles && Array.isArray(d.puzzles) ? d.puzzles : []);
@@ -654,28 +744,23 @@
         function retryPuzzle() { if (currentPuzzleIndex >= 0) { loadPuzzle(puzzles[currentPuzzleIndex]); showStatus("Réessayez", "info"); } }
 
         function loadPuzzle(pd) {
-            game.reset();
-            hasFailed = false; // RESET STATE
-            
+            game.reset(); hasFailed = false;
             if (!game.load_pgn(pd.game.pgn)) { showStatus("Erreur PGN", "error"); setTimeout(nextPuzzle, 1000); return; }
             let h = game.history({verbose:true}), setup=null;
             game.reset(); for(let i=0; i<pd.puzzle.initialPly; i++) game.move(h[i]);
             if(h[pd.puzzle.initialPly]) { setup=h[pd.puzzle.initialPly]; game.move(setup); }
 
             board.position(game.fen(), false);
-            
             const playerColor = game.turn() === 'w' ? 'white' : 'black';
             board.orientation(playerColor);
 
             currentSolution = [...pd.puzzle.solution]; isPuzzleActive = true; deselectSquare(); resetHelpButton(); isInfoVisible=false; updateInfoVisibility();
-            
             if(setup) { highlightLastMove(setup.from, setup.to); playSound('move'); }
             els.rating.innerText = pd.puzzle.rating; renderThemes(pd.puzzle.themes);
             
             const wp = pd.game.players.find(p=>p.color==='white')||{name:'?', rating:'?'};
             const bp = pd.game.players.find(p=>p.color==='black')||{name:'?', rating:'?'};
-            if (playerColor === 'white') updateInfos(wp, bp, 'Blanc', 'Noir'); 
-            else updateInfos(bp, wp, 'Noir', 'Blanc');
+            if (playerColor === 'white') updateInfos(wp, bp, 'Blanc', 'Noir'); else updateInfos(bp, wp, 'Noir', 'Blanc');
             
             updateTurn();
             els.nextBtn.disabled=true; els.retryBtn.disabled=false; els.helpBtn.disabled=false;
@@ -702,18 +787,7 @@
             }
         }
 
-        function renderThemes(t) {
-            els.themes.innerHTML=''; if(!t)return;
-            t.forEach(th=>{
-                const s=document.createElement('span'); s.innerText=th.charAt(0).toUpperCase()+th.slice(1);
-                s.className="text-[10px] bg-slate-700 text-slate-300 px-2 py-0.5 rounded border border-slate-600";
-                els.themes.appendChild(s);
-            });
-        }
-
-        function updateTurn() {
-            if (isPuzzleActive) { els.bottomInd.classList.remove('hidden'); els.topInd.classList.add('hidden'); } else { els.bottomInd.classList.add('hidden'); }
-        }
+        function updateTurn() { if (isPuzzleActive) { els.bottomInd.classList.remove('hidden'); els.topInd.classList.add('hidden'); } else { els.bottomInd.classList.add('hidden'); } }
 
         function attemptMove(source, target, promotionPiece = 'q') {
             if (!isPuzzleActive) return false;
@@ -722,20 +796,10 @@
             let uci = source + target; if (move.promotion) uci += move.promotion;
             if (uci === currentSolution[0]) {
                 currentSolution.shift(); board.position(game.fen()); highlightLastMove(source, target); clearHints(); playSound('move');
-                if (currentSolution.length === 0) { 
-                    playSound('win'); 
-                    winPuzzle(); 
-                } 
-                else {
-                    els.bottomInd.classList.add('hidden'); els.topInd.classList.remove('hidden');
-                    setTimeout(playOpponent, 600);
-                }
+                if (currentSolution.length === 0) { playSound('win'); winPuzzle(); } 
+                else { els.bottomInd.classList.add('hidden'); els.topInd.classList.remove('hidden'); setTimeout(playOpponent, 600); }
                 return true;
-            } else { 
-                game.undo(); board.position(game.fen()); playSound('error'); showStatus("Mauvais coup", "error"); 
-                hasFailed = true; // MARQUER ECHEC
-                return false; 
-            }
+            } else { game.undo(); board.position(game.fen()); playSound('error'); showStatus("Mauvais coup", "error"); hasFailed = true; return false; }
         }
 
         function playOpponent() {
@@ -751,19 +815,13 @@
             isInfoVisible = true; updateInfoVisibility();
             els.nextBtn.disabled=false; els.retryBtn.disabled=true; els.helpBtn.disabled=true;
             els.bottomInd.classList.add('hidden'); els.topInd.classList.add('hidden');
-            
-            // SAUVEGARDE RESULTAT (Succès = !hasFailed)
             handleResult(puzzles[currentPuzzleIndex].puzzle.id, !hasFailed);
         }
 
         function handleHelpClick() {
             if(!isPuzzleActive || currentSolution.length===0) return;
             const m = currentSolution[0], s = m.substring(0,2), t = m.substring(2,4);
-            if(hintState===0) { 
-                $('.square-55d63').removeClass('highlight-hint'); $(`#myBoard .square-${s}`).addClass('highlight-hint'); 
-                showStatus("Pièce indiquée", "info"); hintState=1; els.helpText.innerText="SOLUCE"; els.helpIcon.className="fas fa-lightbulb mb-1 text-xl"; 
-                hasFailed = true; // MARQUER ECHEC (Aide utilisée)
-            } else attemptMove(s, t);
+            if(hintState===0) { $('.square-55d63').removeClass('highlight-hint'); $(`#myBoard .square-${s}`).addClass('highlight-hint'); showStatus("Pièce indiquée", "info"); hintState=1; els.helpText.innerText="SOLUCE"; els.helpIcon.className="fas fa-lightbulb mb-1 text-xl"; hasFailed = true; } else attemptMove(s, t);
         }
         function clearHints() { $('.square-55d63').removeClass('highlight-hint'); resetHelpButton(); }
         function showStatus(t, type) {
