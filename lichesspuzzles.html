@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Lichess Tactiques V20 - Sync Results</title>
+    <title>Lichess Tactiques V21 - Batch API Fix</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -424,11 +424,17 @@
         function handleResult(puzzleId, win) {
             if (!userToken) return; // Pas de compte, pas de tracking
             
-            // Tentative d'envoi immédiat
-            fetch(`https://lichess.org/api/puzzle/${puzzleId}/solve`, {
+            // Nouvelle API Batch pour envoi immédiat
+            fetch('https://lichess.org/api/puzzle/batch/mix?nb=0', {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${userToken}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ win: win })
+                body: JSON.stringify({
+                    solutions: [{
+                        id: puzzleId,
+                        win: win,
+                        rated: true
+                    }]
+                })
             }).then(res => {
                 if (!res.ok) throw new Error("Sync failed");
                 console.log("Result synced:", puzzleId, win);
@@ -460,26 +466,33 @@
             if (pending.length === 0) return;
 
             els.syncIndicator.classList.remove('hidden');
-            let remaining = [];
+            
+            // Construction payload batch
+            const solutions = pending.map(p => ({
+                id: p.id,
+                win: p.win,
+                rated: true
+            }));
 
-            // Envoi séquentiel pour éviter le rate limit
-            for (let item of pending) {
-                try {
-                    const res = await fetch(`https://lichess.org/api/puzzle/${item.id}/solve`, {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${userToken}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ win: item.win })
-                    });
-                    if (!res.ok) throw new Error("Failed");
-                } catch (e) {
-                    remaining.push(item); // Garder si échec
-                }
+            try {
+                const res = await fetch('https://lichess.org/api/puzzle/batch/mix?nb=0', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${userToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ solutions: solutions })
+                });
+
+                if (!res.ok) throw new Error("Batch sync failed");
+
+                // Succès : on vide le storage
+                localStorage.removeItem('lichess_offline_results');
+                showStatus("Synchro terminée", "info");
+            } catch (e) {
+                console.warn("Sync failed", e);
+                // On garde pour la prochaine fois
+            } finally {
+                els.syncIndicator.classList.add('hidden');
+                updateOfflineUI();
             }
-
-            localStorage.setItem('lichess_offline_results', JSON.stringify(remaining));
-            els.syncIndicator.classList.add('hidden');
-            updateOfflineUI();
-            if (remaining.length === 0) showStatus("Synchro terminée", "info");
         }
 
         // --- STANDARD API ---
