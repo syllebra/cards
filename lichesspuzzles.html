@@ -1,20 +1,19 @@
 <!DOCTYPE html>
 <html lang="fr">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Lichess Tactiques V19 - Difficulty & Token</title>
-
+    <title>Lichess Tactiques V20 - Sync Results</title>
+    
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-
+    
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
+    
     <!-- Chessboard.js CSS -->
     <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
-
+    
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -26,15 +25,8 @@
         }
 
         /* Thème Bleu */
-        .white-1e1d7 {
-            background-color: #f0f9ff;
-            color: #3b82f6;
-        }
-
-        .black-3c85d {
-            background-color: #60a5fa;
-            color: #f0f9ff;
-        }
+        .white-1e1d7 { background-color: #f0f9ff; color: #3b82f6; }
+        .black-3c85d { background-color: #60a5fa; color: #f0f9ff; }
 
         /* Case sélectionnée (Vert) */
         .highlight-selected {
@@ -45,9 +37,8 @@
         .highlight-move {
             background-color: rgba(255, 255, 0, 0.5) !important;
         }
-
         .black-3c85d.highlight-move {
-            background-color: #a3e635 !important;
+            background-color: #a3e635 !important; 
         }
 
         /* Indication Aide (Violet) */
@@ -58,91 +49,37 @@
 
         /* Indices visuels */
         .hint-legal-move::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 25%;
-            height: 25%;
-            background-color: rgba(0, 0, 0, 0.25);
-            border-radius: 50%;
-            pointer-events: none;
+            content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 25%; height: 25%; background-color: rgba(0, 0, 0, 0.25); border-radius: 50%; pointer-events: none;
         }
-
-        .hint-legal-capture {
-            box-shadow: inset 0 0 0 4px rgba(239, 68, 68, 0.6) !important;
-        }
-
+        .hint-legal-capture { box-shadow: inset 0 0 0 4px rgba(239, 68, 68, 0.6) !important; }
         .hint-legal-capture::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: radial-gradient(transparent 55%, rgba(239, 68, 68, 0.2) 100%);
-            pointer-events: none;
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(transparent 55%, rgba(239, 68, 68, 0.2) 100%); pointer-events: none;
         }
 
         @keyframes pulse-purple {
-            0% {
-                box-shadow: inset 0 0 0 4px #a855f7;
-            }
-
-            50% {
-                box-shadow: inset 0 0 0 8px #d8b4fe;
-            }
-
-            100% {
-                box-shadow: inset 0 0 0 4px #a855f7;
-            }
+            0% { box-shadow: inset 0 0 0 4px #a855f7; }
+            50% { box-shadow: inset 0 0 0 8px #d8b4fe; }
+            100% { box-shadow: inset 0 0 0 4px #a855f7; }
         }
 
         /* Modal Overlay */
-        .modal-overlay {
-            background-color: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(4px);
-        }
-
-        .promo-piece:active {
-            transform: scale(0.9);
-        }
-
+        .modal-overlay { background-color: rgba(15, 23, 42, 0.95); backdrop-filter: blur(4px); }
+        .promo-piece:active { transform: scale(0.9); }
+        
         /* Blur infos */
-        .blur-info {
-            filter: blur(5px);
-            opacity: 0.6;
-            pointer-events: none;
-            user-select: none;
-        }
-
-        .info-transition {
-            transition: filter 0.5s ease, opacity 0.5s ease;
-        }
-
+        .blur-info { filter: blur(5px); opacity: 0.6; pointer-events: none; user-select: none; }
+        .info-transition { transition: filter 0.5s ease, opacity 0.5s ease; }
+        
         /* Scrollbar */
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
-        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 3px; }
 
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 3px;
-        }
-
-        body {
-            user-select: none;
-            -webkit-user-select: none;
-            overscroll-behavior: none;
-        }
+        body { user-select: none; -webkit-user-select: none; overscroll-behavior: none; }
     </style>
 </head>
-
 <body class="bg-slate-900 text-white h-screen flex flex-col font-sans overflow-hidden">
 
     <!-- HEADER -->
@@ -153,30 +90,31 @@
                 <h1 class="font-bold text-lg hidden sm:block">Tactiques</h1>
             </div>
 
-            <div id="demo-badge"
-                class="hidden absolute left-1/2 transform -translate-x-1/2 bg-orange-500/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-orange-400 animate-pulse">
+            <div id="demo-badge" class="hidden absolute left-1/2 transform -translate-x-1/2 bg-orange-500/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-orange-400 animate-pulse">
                 MODE DÉMO
             </div>
-
+            
             <div class="flex items-center space-x-2">
-                <div id="user-elo-badge"
-                    class="hidden bg-blue-600/20 px-2 py-1 rounded border border-blue-500/50 flex items-center space-x-1 mr-1">
+                <!-- Indicateur Sync (Nouveau) -->
+                <div id="sync-indicator" class="hidden text-xs text-yellow-400 font-mono animate-pulse mr-2">
+                    <i class="fas fa-sync fa-spin mr-1"></i>Sync...
+                </div>
+
+                <div id="user-elo-badge" class="hidden bg-blue-600/20 px-2 py-1 rounded border border-blue-500/50 flex items-center space-x-1 mr-1">
                     <i class="fas fa-chart-line text-blue-400 text-xs"></i>
                     <span id="header-user-elo" class="font-mono font-bold text-blue-100 text-sm">----</span>
                 </div>
 
                 <button id="user-btn" class="text-slate-400 hover:text-blue-400 transition p-2 relative" title="Profil">
                     <i class="fas fa-user-circle text-lg"></i>
-                    <div id="user-status-dot"
-                        class="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500 border border-slate-800"></div>
+                    <div id="user-status-dot" class="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500 border border-slate-800"></div>
                 </button>
 
                 <button id="toggle-info-btn" class="text-slate-400 hover:text-white transition p-2">
                     <i id="info-icon" class="fas fa-eye-slash"></i>
                 </button>
-
-                <div id="rating-container"
-                    class="bg-slate-700 px-2 py-1 rounded flex items-center space-x-1 border border-slate-600 info-transition blur-info">
+                
+                <div id="rating-container" class="bg-slate-700 px-2 py-1 rounded flex items-center space-x-1 border border-slate-600 info-transition blur-info">
                     <i class="fas fa-trophy text-yellow-400 text-xs"></i>
                     <span id="puzzle-rating" class="font-mono font-bold text-yellow-100 text-sm">---</span>
                 </div>
@@ -186,48 +124,41 @@
 
     <!-- MAIN -->
     <div class="flex-grow flex flex-col justify-center items-center w-full max-w-md mx-auto px-2 relative">
-
+        
         <!-- Joueur Haut (Adversaire) -->
         <div class="w-full flex justify-between items-end mb-2 px-1 relative z-0">
             <div class="flex items-center space-x-2 opacity-90">
-                <div
-                    class="w-8 h-8 bg-slate-700 rounded flex items-center justify-center border border-slate-600 relative">
+                <div class="w-8 h-8 bg-slate-700 rounded flex items-center justify-center border border-slate-600 relative">
                     <i class="fas fa-robot text-slate-400"></i>
-                    <div id="top-color-indicator"
-                        class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border border-slate-500 shadow-sm flex items-center justify-center bg-white">
+                    <div id="top-color-indicator" class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border border-slate-500 shadow-sm flex items-center justify-center bg-white">
                         <i class="fas fa-chess-pawn text-[8px] text-black"></i>
                     </div>
                 </div>
                 <div class="flex flex-col leading-tight">
                     <div class="flex items-center">
                         <span id="top-player-name" class="text-sm font-bold text-slate-200">Adversaire</span>
-                        <span id="top-player-color-text"
-                            class="ml-2 text-[10px] uppercase font-bold text-slate-500 bg-slate-800 px-1 rounded border border-slate-700">Noir</span>
+                        <span id="top-player-color-text" class="ml-2 text-[10px] uppercase font-bold text-slate-500 bg-slate-800 px-1 rounded border border-slate-700">Noir</span>
                     </div>
                     <span id="top-player-rating" class="text-xs text-slate-400 font-mono"></span>
                 </div>
             </div>
             <!-- INDICATEUR TOUR -->
-            <div id="top-indicator"
-                class="hidden px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded animate-pulse">
+            <div id="top-indicator" class="hidden px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded animate-pulse">
                 À son tour
             </div>
         </div>
 
         <!-- Zone de message flottante -->
-        <div id="status-message"
-            class="absolute top-12 left-1/2 transform -translate-x-1/2 z-50 px-6 py-2 rounded-full font-bold shadow-2xl transition-all duration-300 opacity-0 -translate-y-4 pointer-events-none whitespace-nowrap border border-white/10 bg-slate-800/95 backdrop-blur text-sm">
+        <div id="status-message" class="absolute top-12 left-1/2 transform -translate-x-1/2 z-50 px-6 py-2 rounded-full font-bold shadow-2xl transition-all duration-300 opacity-0 -translate-y-4 pointer-events-none whitespace-nowrap border border-white/10 bg-slate-800/95 backdrop-blur text-sm">
             Message
         </div>
 
         <!-- ECHIQUIER -->
         <div class="relative w-full max-w-[400px]">
             <div id="myBoard" class="w-full board-container aspect-square rounded-lg"></div>
-
-            <div id="promotion-modal"
-                class="hidden absolute inset-0 z-40 flex items-center justify-center rounded-lg modal-overlay">
-                <div
-                    class="bg-slate-800 p-4 rounded-xl shadow-2xl border border-slate-600 flex flex-col items-center animate-bounce-in">
+            
+            <div id="promotion-modal" class="hidden absolute inset-0 z-40 flex items-center justify-center rounded-lg modal-overlay">
+                <div class="bg-slate-800 p-4 rounded-xl shadow-2xl border border-slate-600 flex flex-col items-center animate-bounce-in">
                     <h3 class="text-white font-bold mb-4">Choisir une pièce</h3>
                     <div class="flex space-x-4" id="promotion-options"></div>
                 </div>
@@ -237,26 +168,22 @@
         <!-- Joueur Bas (Vous / Joueur Historique) -->
         <div class="w-full flex justify-between items-start mt-2 px-1">
             <div class="flex items-center space-x-2">
-                <div
-                    class="w-8 h-8 bg-slate-700 rounded flex items-center justify-center border border-slate-600 relative">
+                <div class="w-8 h-8 bg-slate-700 rounded flex items-center justify-center border border-slate-600 relative">
                     <i class="fas fa-user text-slate-400"></i>
-                    <div id="bottom-color-indicator"
-                        class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border border-slate-500 shadow-sm flex items-center justify-center bg-black">
+                    <div id="bottom-color-indicator" class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border border-slate-500 shadow-sm flex items-center justify-center bg-black">
                         <i class="fas fa-chess-pawn text-[8px] text-white"></i>
                     </div>
                 </div>
                 <div class="flex flex-col leading-tight">
                     <div class="flex items-center">
                         <span id="bottom-player-name" class="text-sm font-bold text-white">Joueur</span>
-                        <span id="bottom-player-color-text"
-                            class="ml-2 text-[10px] uppercase font-bold text-slate-500 bg-slate-800 px-1 rounded border border-slate-700">Blanc</span>
+                        <span id="bottom-player-color-text" class="ml-2 text-[10px] uppercase font-bold text-slate-500 bg-slate-800 px-1 rounded border border-slate-700">Blanc</span>
                     </div>
                     <span id="bottom-player-rating" class="text-xs text-slate-400 font-mono"></span>
                 </div>
             </div>
             <!-- INDICATEUR TOUR -->
-            <div id="bottom-indicator"
-                class="hidden px-2 py-0.5 bg-green-500 text-white text-xs font-bold rounded animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]">
+             <div id="bottom-indicator" class="hidden px-2 py-0.5 bg-green-500 text-white text-xs font-bold rounded animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]">
                 À votre tour
             </div>
         </div>
@@ -264,58 +191,48 @@
     </div>
 
     <!-- MODALE UTILISATEUR -->
-    <div id="user-modal"
-        class="hidden fixed inset-0 z-[100] modal-overlay flex flex-col items-center justify-center p-4">
-        <div
-            class="bg-slate-900 w-full max-w-lg h-[90vh] rounded-2xl shadow-2xl border border-slate-700 flex flex-col overflow-hidden">
+    <div id="user-modal" class="hidden fixed inset-0 z-[100] modal-overlay flex flex-col items-center justify-center p-4">
+        <div class="bg-slate-900 w-full max-w-lg h-[90vh] rounded-2xl shadow-2xl border border-slate-700 flex flex-col overflow-hidden">
             <div class="p-4 bg-slate-800 border-b border-slate-700 flex justify-between items-center shrink-0">
                 <h2 class="text-lg font-bold text-blue-400"><i class="fas fa-chart-line mr-2"></i>Compte & Stats</h2>
                 <button id="close-user-modal" class="text-gray-400 hover:text-white px-2 text-xl">&times;</button>
             </div>
             <div class="flex-grow overflow-y-auto p-4 custom-scrollbar space-y-6">
-
-                <!-- Section Paramètres (Nouvelle) -->
+                
+                <!-- Section Paramètres -->
                 <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
                     <h3 class="text-sm font-bold text-gray-300 mb-2 uppercase">Paramètres</h3>
                     <div>
                         <label class="block text-xs font-bold text-gray-400 mb-1">Difficulté des puzzles</label>
-                        <select id="difficulty-select"
-                            class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-sm text-white focus:border-blue-500 focus:outline-none">
+                        <select id="difficulty-select" class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-sm text-white focus:border-blue-500 focus:outline-none">
                             <option value="easiest">Très Facile (-600)</option>
                             <option value="easier">Facile (-300)</option>
                             <option value="normal">Normale</option>
                             <option value="harder">Difficile (+300)</option>
                             <option value="hardest">Très Difficile (+600)</option>
                         </select>
-                        <p class="text-[10px] text-gray-500 mt-1 italic">Changer la difficulté rechargera une nouvelle
-                            série.</p>
+                        <p class="text-[10px] text-gray-500 mt-1 italic">Changer la difficulté rechargera une nouvelle série.</p>
                     </div>
                 </div>
 
                 <div id="login-section" class="space-y-4">
                     <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
                         <label class="block text-xs font-bold text-gray-400 mb-2 uppercase">Lichess API Token</label>
-                        <input type="password" id="api-token-input"
-                            class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-sm text-white focus:border-blue-500 focus:outline-none mb-3"
-                            placeholder="Collez votre token ici...">
+                        <input type="password" id="api-token-input" class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-sm text-white focus:border-blue-500 focus:outline-none mb-3" placeholder="Collez votre token ici...">
                         <div class="flex justify-between items-center">
-                            <a href="https://lichess.org/account/oauth/token" target="_blank"
-                                class="text-xs text-blue-400 underline hover:text-blue-300">Créer un token</a>
-                            <button id="save-token-btn"
-                                class="bg-green-600 hover:bg-green-500 text-white px-4 py-1.5 rounded text-sm font-bold transition">Connexion</button>
+                            <a href="https://lichess.org/account/oauth/token" target="_blank" class="text-xs text-blue-400 underline hover:text-blue-300">Créer un token</a>
+                            <button id="save-token-btn" class="bg-green-600 hover:bg-green-500 text-white px-4 py-1.5 rounded text-sm font-bold transition">Connexion</button>
                         </div>
                     </div>
                 </div>
-
+                
                 <div id="profile-section" class="hidden space-y-6">
                     <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex items-center justify-between">
                         <div class="flex items-center space-x-3">
-                            <div class="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center border-2 border-blue-500 text-xl font-bold text-blue-300"
-                                id="profile-avatar">?</div>
+                            <div class="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center border-2 border-blue-500 text-xl font-bold text-blue-300" id="profile-avatar">?</div>
                             <div>
                                 <div id="profile-username" class="font-bold text-lg">Joueur</div>
-                                <div class="text-xs text-green-400 flex items-center"><i
-                                        class="fas fa-circle text-[8px] mr-1"></i> Connecté</div>
+                                <div class="text-xs text-green-400 flex items-center"><i class="fas fa-circle text-[8px] mr-1"></i> Connecté</div>
                             </div>
                         </div>
                         <div class="text-right">
@@ -323,50 +240,46 @@
                             <div id="profile-rating" class="text-2xl font-mono font-bold text-yellow-400">---</div>
                         </div>
                     </div>
+                    
+                    <!-- Pending Offline Results -->
+                    <div id="offline-stats" class="hidden bg-yellow-900/30 p-3 rounded-lg border border-yellow-700/50">
+                        <div class="text-xs text-yellow-200 flex items-center">
+                            <i class="fas fa-wifi mr-2"></i>
+                            <span id="offline-count">0</span> résultats en attente de synchro
+                        </div>
+                    </div>
+
                     <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
-                        <h3 class="text-sm font-bold text-gray-300 mb-4 border-b border-slate-700 pb-2">Progression (30
-                            jours)</h3>
+                        <h3 class="text-sm font-bold text-gray-300 mb-4 border-b border-slate-700 pb-2">Progression (30 jours)</h3>
                         <div class="h-32 w-full flex items-end justify-between space-x-1" id="rating-chart-container">
-                            <div class="w-full h-full flex items-center justify-center text-gray-500 text-xs italic">
-                                Chargement...</div>
+                            <div class="w-full h-full flex items-center justify-center text-gray-500 text-xs italic">Chargement...</div>
                         </div>
                     </div>
                     <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-                        <h3 class="text-sm font-bold text-gray-300 p-4 border-b border-slate-700 bg-slate-800/50">
-                            Performance par Thème</h3>
-                        <div id="themes-stats-list"
-                            class="divide-y divide-slate-700 max-h-64 overflow-y-auto custom-scrollbar"></div>
+                        <h3 class="text-sm font-bold text-gray-300 p-4 border-b border-slate-700 bg-slate-800/50">Performance par Thème</h3>
+                        <div id="themes-stats-list" class="divide-y divide-slate-700 max-h-64 overflow-y-auto custom-scrollbar"></div>
                     </div>
-                    <button id="logout-btn"
-                        class="w-full py-2 text-red-400 text-sm hover:bg-slate-800 rounded border border-slate-700 transition">Se
-                        déconnecter</button>
+                    <button id="logout-btn" class="w-full py-2 text-red-400 text-sm hover:bg-slate-800 rounded border border-slate-700 transition">Se déconnecter</button>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- FOOTER -->
-    <div
-        class="w-full bg-slate-800 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-10 p-4 flex-none border-t border-slate-700">
+    <div class="w-full bg-slate-800 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-10 p-4 flex-none border-t border-slate-700">
         <div id="themes-container" class="info-transition blur-info">
-            <div id="puzzle-themes" class="flex flex-wrap gap-1 mb-4 justify-center max-w-md mx-auto min-h-[1.5rem]">
-            </div>
+            <div id="puzzle-themes" class="flex flex-wrap gap-1 mb-4 justify-center max-w-md mx-auto min-h-[1.5rem]"></div>
         </div>
         <div class="grid grid-cols-4 gap-3 max-w-md mx-auto">
-            <button id="help-btn"
-                class="col-span-1 bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white font-bold py-3 rounded-xl transition shadow flex flex-col items-center justify-center disabled:opacity-40 disabled:saturate-0"
-                title="Aide">
+            <button id="help-btn" class="col-span-1 bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white font-bold py-3 rounded-xl transition shadow flex flex-col items-center justify-center disabled:opacity-40 disabled:saturate-0" title="Aide">
                 <i id="help-icon" class="fas fa-question-circle mb-1 text-xl"></i>
                 <span id="help-text" class="text-[10px] uppercase tracking-wider">Aide</span>
             </button>
-            <button id="retry-btn"
-                class="col-span-1 bg-slate-600 hover:bg-slate-500 active:bg-slate-700 text-white font-bold py-3 rounded-xl transition shadow flex flex-col items-center justify-center disabled:opacity-40 disabled:saturate-0"
-                title="Réessayer">
+            <button id="retry-btn" class="col-span-1 bg-slate-600 hover:bg-slate-500 active:bg-slate-700 text-white font-bold py-3 rounded-xl transition shadow flex flex-col items-center justify-center disabled:opacity-40 disabled:saturate-0" title="Réessayer">
                 <i class="fas fa-undo mb-1 text-xl"></i>
                 <span class="text-[10px] uppercase tracking-wider">Reset</span>
             </button>
-            <button id="next-btn"
-                class="col-span-2 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition shadow flex items-center justify-center space-x-2 disabled:opacity-40 disabled:bg-slate-700 disabled:text-gray-500">
+            <button id="next-btn" class="col-span-2 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition shadow flex items-center justify-center space-x-2 disabled:opacity-40 disabled:bg-slate-700 disabled:text-gray-500">
                 <span>Suivant</span>
                 <i class="fas fa-arrow-right"></i>
             </button>
@@ -386,27 +299,27 @@
             const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); const filter = audioCtx.createBiquadFilter();
             filter.type = 'lowpass'; osc.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
             if (type === 'move') {
-                osc.type = 'sine'; filter.frequency.setValueAtTime(800, now); osc.frequency.setValueAtTime(300, now); osc.frequency.exponentialRampToValueAtTime(50, now + 0.1);
-                gain.gain.setValueAtTime(0, now); gain.gain.linearRampToValueAtTime(0.3, now + 0.01); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-                osc.start(now); osc.stop(now + 0.1);
+                osc.type = 'sine'; filter.frequency.setValueAtTime(800, now); osc.frequency.setValueAtTime(300, now); osc.frequency.exponentialRampToValueAtTime(50, now+0.1);
+                gain.gain.setValueAtTime(0, now); gain.gain.linearRampToValueAtTime(0.3, now+0.01); gain.gain.exponentialRampToValueAtTime(0.01, now+0.1);
+                osc.start(now); osc.stop(now+0.1);
             } else if (type === 'error') {
-                osc.type = 'triangle'; filter.frequency.setValueAtTime(200, now); osc.frequency.setValueAtTime(70, now); osc.frequency.linearRampToValueAtTime(50, now + 0.2);
-                gain.gain.setValueAtTime(0, now); gain.gain.linearRampToValueAtTime(0.2, now + 0.05); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-                osc.start(now); osc.stop(now + 0.35);
+                osc.type = 'triangle'; filter.frequency.setValueAtTime(200, now); osc.frequency.setValueAtTime(70, now); osc.frequency.linearRampToValueAtTime(50, now+0.2);
+                gain.gain.setValueAtTime(0, now); gain.gain.linearRampToValueAtTime(0.2, now+0.05); gain.gain.exponentialRampToValueAtTime(0.01, now+0.3);
+                osc.start(now); osc.stop(now+0.35);
             } else if (type === 'win') {
-                [261.63, 329.63, 392.00].forEach((f, i) => {
-                    const o = audioCtx.createOscillator(); const g = audioCtx.createGain(); const fl = audioCtx.createBiquadFilter();
-                    o.type = 'sine'; o.frequency.value = f; fl.type = 'lowpass'; fl.frequency.value = 1000;
-                    o.connect(fl); fl.connect(g); g.connect(audioCtx.destination);
-                    const t = now + (i * 0.05); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.15, t + 0.2); g.gain.exponentialRampToValueAtTime(0.001, t + 1.5);
-                    o.start(t); o.stop(t + 1.6);
+                [261.63, 329.63, 392.00].forEach((f,i)=>{
+                    const o=audioCtx.createOscillator();const g=audioCtx.createGain();const fl=audioCtx.createBiquadFilter();
+                    o.type='sine';o.frequency.value=f;fl.type='lowpass';fl.frequency.value=1000;
+                    o.connect(fl);fl.connect(g);g.connect(audioCtx.destination);
+                    const t=now+(i*0.05);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.15,t+0.2);g.gain.exponentialRampToValueAtTime(0.001,t+1.5);
+                    o.start(t);o.stop(t+1.6);
                 });
             }
         }
 
         const MOCK_PUZZLES = [
-            { "game": { "id": "O8sz7nS8", "pgn": "d4 d5 c4 e6 Nc3 Bb4 Nf3 Nf6 e3 Ne4 Qc2 c6 Bd3 f5 O-O O-O Ne5 Nd7 Nxd7 Bxd7 f3 Nxc3 bxc3 Bd6 e4 fxe4 fxe4 dxe4 Bxe4", "players": [{ "name": "euphrates7", "rating": 1988, "color": "white" }, { "name": "ahmadsoltani", "rating": 1927, "color": "black" }] }, "puzzle": { "id": "f8M0Z", "rating": 1939, "solution": ["d6h2", "g1h2", "f8f1", "e4h7", "g8h8"], "themes": ["deflection", "middlegame", "crushing", "long", "kingsideAttack"], "initialPly": 28 } },
-            { "game": { "id": "BMh79XZA", "pgn": "e4 e6 d4 g6 Be3 Bg7 Qd2 Ne7 h4 h5 Nc3 d5 O-O-O dxe4 Nxe4 b6 Nh3 Bb7 Neg5 Nf5 Nf4 Nxe3 fxe3 O-O Bc4 Re8 Qe2 Bh6 g4 Bxg5 hxg5 Bxh1 Rxh1 Qxg5 gxh5 Qh6 Qg2 g5 Nh3 Nd7 Nxg5 Kf8 Rf1 f5 Bxe6 Ke7 Qc6 Rad8 Rxf5 Rf8 Bxd7", "players": [{ "name": "Arxeuz", "rating": 2063, "color": "white" }, { "name": "CarlosAguilar", "rating": 2109, "color": "black" }] }, "puzzle": { "id": "Ai8r1", "rating": 1583, "solution": ["h6c6", "d7c6", "f8f5"], "themes": ["middlegame", "short", "advantage"], "initialPly": 50 } }
+            { "game": { "id": "O8sz7nS8", "pgn": "d4 d5 c4 e6 Nc3 Bb4 Nf3 Nf6 e3 Ne4 Qc2 c6 Bd3 f5 O-O O-O Ne5 Nd7 Nxd7 Bxd7 f3 Nxc3 bxc3 Bd6 e4 fxe4 fxe4 dxe4 Bxe4", "players": [ { "name": "euphrates7", "rating": 1988, "color": "white" }, { "name": "ahmadsoltani", "rating": 1927, "color": "black" } ] }, "puzzle": { "id": "f8M0Z", "rating": 1939, "solution": ["d6h2", "g1h2", "f8f1", "e4h7", "g8h8"], "themes": ["deflection", "middlegame", "crushing", "long", "kingsideAttack"], "initialPly": 28 } },
+            { "game": { "id": "BMh79XZA", "pgn": "e4 e6 d4 g6 Be3 Bg7 Qd2 Ne7 h4 h5 Nc3 d5 O-O-O dxe4 Nxe4 b6 Nh3 Bb7 Neg5 Nf5 Nf4 Nxe3 fxe3 O-O Bc4 Re8 Qe2 Bh6 g4 Bxg5 hxg5 Bxh1 Rxh1 Qxg5 gxh5 Qh6 Qg2 g5 Nh3 Nd7 Nxg5 Kf8 Rf1 f5 Bxe6 Ke7 Qc6 Rad8 Rxf5 Rf8 Bxd7", "players": [ { "name": "Arxeuz", "rating": 2063, "color": "white" }, { "name": "CarlosAguilar", "rating": 2109, "color": "black" } ] }, "puzzle": { "id": "Ai8r1", "rating": 1583, "solution": ["h6c6", "d7c6", "f8f5"], "themes": ["middlegame", "short", "advantage"], "initialPly": 50 } }
         ];
 
         let board = null, game = new Chess(), puzzles = [], currentPuzzleIndex = -1, currentSolution = [], isPuzzleActive = false;
@@ -415,6 +328,7 @@
         let userToken = localStorage.getItem('lichess_token') || null;
         let currentDifficulty = localStorage.getItem('puzzle_difficulty') || 'normal';
         let currentUser = null;
+        let hasFailed = false; // SUIVI ECHEC
 
         const els = {
             rating: document.getElementById('puzzle-rating'), ratingContainer: document.getElementById('rating-container'),
@@ -431,23 +345,22 @@
             apiTokenInput: document.getElementById('api-token-input'), saveTokenBtn: document.getElementById('save-token-btn'), logoutBtn: document.getElementById('logout-btn'),
             profileAvatar: document.getElementById('profile-avatar'), profileUsername: document.getElementById('profile-username'), profileRating: document.getElementById('profile-rating'),
             ratingChartContainer: document.getElementById('rating-chart-container'), themesStatsList: document.getElementById('themes-stats-list'),
-            // Elements restaurés
             topInd: document.getElementById('top-indicator'), bottomInd: document.getElementById('bottom-indicator'),
             userEloBadge: document.getElementById('user-elo-badge'), headerUserElo: document.getElementById('header-user-elo'),
             topColorText: document.getElementById('top-player-color-text'), bottomColorText: document.getElementById('bottom-player-color-text'),
             topColorIndicator: document.getElementById('top-color-indicator'), bottomColorIndicator: document.getElementById('bottom-color-indicator'),
-            difficultySelect: document.getElementById('difficulty-select')
+            difficultySelect: document.getElementById('difficulty-select'),
+            offlineStats: document.getElementById('offline-stats'), offlineCount: document.getElementById('offline-count'),
+            syncIndicator: document.getElementById('sync-indicator')
         };
 
-        $(document).ready(function () {
-            initBoard();
-            // Init difficulty selector
+        $(document).ready(function() {
+            initBoard(); 
             els.difficultySelect.value = currentDifficulty;
-
-            attachEvents();
-            fetchPuzzles();
-            checkUserAuth();
-            $(document).on('click touchstart', function () { initAudio(); });
+            attachEvents(); 
+            fetchPuzzles(); 
+            checkUserAuth(); // Sync happens here too
+            $(document).on('click touchstart', function() { initAudio(); });
         });
 
         function initBoard() {
@@ -457,20 +370,18 @@
 
         function attachEvents() {
             $('#next-btn').on('click', nextPuzzle); $('#retry-btn').on('click', retryPuzzle); $('#help-btn').on('click', handleHelpClick); $('#toggle-info-btn').on('click', toggleInfo);
-            $('#myBoard').on('click', '.square-55d63', function () { if (!isPuzzleActive) return; handleSquareClick($(this).attr('data-square')); });
-            $('#user-btn').on('click', () => { $('#user-modal').removeClass('hidden'); if (userToken) fetchUserStats(); });
+            $('#myBoard').on('click', '.square-55d63', function() { if (!isPuzzleActive) return; handleSquareClick($(this).attr('data-square')); });
+            $('#user-btn').on('click', () => { 
+                $('#user-modal').removeClass('hidden'); 
+                if (userToken) { fetchUserStats(); updateOfflineUI(); }
+            });
             $('#close-user-modal').on('click', () => $('#user-modal').addClass('hidden'));
             $('#save-token-btn').on('click', handleLogin); $('#logout-btn').on('click', handleLogout);
-
-            // Difficulty Change Event
-            $('#difficulty-select').on('change', function () {
+            
+            $('#difficulty-select').on('change', function() {
                 currentDifficulty = this.value;
                 localStorage.setItem('puzzle_difficulty', currentDifficulty);
-                // Trigger refresh if we want immediate effect or wait for next batch
-                // Let's reload to apply difficulty
-                puzzles = [];
-                currentPuzzleIndex = -1;
-                fetchPuzzles();
+                puzzles = []; currentPuzzleIndex = -1; fetchPuzzles();
             });
         }
 
@@ -480,6 +391,7 @@
                     await fetchUserProfile();
                     els.userStatusDot.classList.replace('bg-red-500', 'bg-green-500');
                     els.loginSection.classList.add('hidden'); els.profileSection.classList.remove('hidden');
+                    syncOfflineResults(); // Trigger sync
                 } catch (e) { console.error(e); handleLogout(); }
             } else els.userStatusDot.classList.replace('bg-green-500', 'bg-red-500');
         }
@@ -494,7 +406,7 @@
                 els.userStatusDot.classList.replace('bg-red-500', 'bg-green-500');
                 els.loginSection.classList.add('hidden'); els.profileSection.classList.remove('hidden');
                 fetchUserStats();
-                // Refresh puzzles with authentication to get personalized ones
+                syncOfflineResults();
                 fetchPuzzles();
             } catch (e) { alert("Erreur."); userToken = null; }
         }
@@ -504,20 +416,84 @@
             els.apiTokenInput.value = ""; els.userStatusDot.classList.replace('bg-green-500', 'bg-red-500');
             els.loginSection.classList.remove('hidden'); els.profileSection.classList.add('hidden');
             els.userEloBadge.classList.add('hidden');
-            // Refresh puzzles (anonymous)
             fetchPuzzles();
         }
+
+        // --- OFFLINE & SYNC LOGIC ---
+
+        function handleResult(puzzleId, win) {
+            if (!userToken) return; // Pas de compte, pas de tracking
+            
+            // Tentative d'envoi immédiat
+            fetch(`https://lichess.org/api/puzzle/${puzzleId}/solve`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${userToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ win: win })
+            }).then(res => {
+                if (!res.ok) throw new Error("Sync failed");
+                console.log("Result synced:", puzzleId, win);
+            }).catch(e => {
+                console.warn("Offline: Storing result", e);
+                storeOfflineResult(puzzleId, win);
+            });
+        }
+
+        function storeOfflineResult(id, win) {
+            let pending = JSON.parse(localStorage.getItem('lichess_offline_results') || '[]');
+            pending.push({ id: id, win: win, ts: Date.now() });
+            localStorage.setItem('lichess_offline_results', JSON.stringify(pending));
+            updateOfflineUI();
+        }
+
+        function updateOfflineUI() {
+            let pending = JSON.parse(localStorage.getItem('lichess_offline_results') || '[]');
+            if (pending.length > 0) {
+                els.offlineStats.classList.remove('hidden');
+                els.offlineCount.innerText = pending.length;
+            } else {
+                els.offlineStats.classList.add('hidden');
+            }
+        }
+
+        async function syncOfflineResults() {
+            let pending = JSON.parse(localStorage.getItem('lichess_offline_results') || '[]');
+            if (pending.length === 0) return;
+
+            els.syncIndicator.classList.remove('hidden');
+            let remaining = [];
+
+            // Envoi séquentiel pour éviter le rate limit
+            for (let item of pending) {
+                try {
+                    const res = await fetch(`https://lichess.org/api/puzzle/${item.id}/solve`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${userToken}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ win: item.win })
+                    });
+                    if (!res.ok) throw new Error("Failed");
+                } catch (e) {
+                    remaining.push(item); // Garder si échec
+                }
+            }
+
+            localStorage.setItem('lichess_offline_results', JSON.stringify(remaining));
+            els.syncIndicator.classList.add('hidden');
+            updateOfflineUI();
+            if (remaining.length === 0) showStatus("Synchro terminée", "info");
+        }
+
+        // --- STANDARD API ---
 
         async function fetchUserProfile() {
             const res = await fetch('https://lichess.org/api/account', { headers: { 'Authorization': `Bearer ${userToken}` } });
             if (!res.ok) throw new Error("Auth failed");
             const data = await res.json();
             currentUser = data;
-
+            
             els.profileUsername.innerText = data.username;
             els.profileRating.innerText = data.perfs.puzzle.rating;
             els.profileAvatar.innerText = data.username.charAt(0).toUpperCase();
-
+            
             els.headerUserElo.innerText = data.perfs.puzzle.rating;
             els.userEloBadge.classList.remove('hidden');
         }
@@ -527,11 +503,11 @@
             try {
                 const d = await (await fetch(`https://lichess.org/api/puzzle/dashboard/30`, { headers: { 'Authorization': `Bearer ${userToken}` } })).json();
                 renderThemeStats(d.global, d.themes);
-            } catch (e) { }
+            } catch(e){}
             try {
                 const h = await (await fetch(`https://lichess.org/api/user/${currentUser.username}/rating-history`)).json();
-                const ph = h.find(x => x.name === "Puzzle"); if (ph) renderRatingChart(ph.points);
-            } catch (e) { }
+                const ph = h.find(x => x.name === "Puzzle"); if(ph) renderRatingChart(ph.points);
+            } catch(e){}
         }
 
         function renderRatingChart(points) {
@@ -562,10 +538,8 @@
                 if (userToken) {
                     headers['Authorization'] = `Bearer ${userToken}`;
                 }
-
-                // Using currentDifficulty which is now saved/loaded from storage
                 const r = await fetch(`https://lichess.org/api/puzzle/batch/mix?difficulty=${currentDifficulty}&nb=50`, { headers });
-
+                
                 if (!r.ok) throw new Error("Erreur réseau");
                 const d = await r.json();
                 let np = Array.isArray(d) ? d : (d.puzzles && Array.isArray(d.puzzles) ? d.puzzles : []);
@@ -575,7 +549,7 @@
 
         function toggleInfo() { isInfoVisible = !isInfoVisible; updateInfoVisibility(); }
         function updateInfoVisibility() {
-            if (isInfoVisible) { els.ratingContainer.classList.remove('blur-info'); els.themesContainer.classList.remove('blur-info'); els.infoIcon.className = "fas fa-eye"; els.toggleInfoBtn.classList.add('text-white'); }
+            if (isInfoVisible) { els.ratingContainer.classList.remove('blur-info'); els.themesContainer.classList.remove('blur-info'); els.infoIcon.className = "fas fa-eye"; els.toggleInfoBtn.classList.add('text-white'); } 
             else { els.ratingContainer.classList.add('blur-info'); els.themesContainer.classList.add('blur-info'); els.infoIcon.className = "fas fa-eye-slash"; els.toggleInfoBtn.classList.remove('text-white'); }
         }
         function resetHelpButton() { hintState = 0; els.helpText.innerText = "AIDE"; els.helpIcon.className = "fas fa-question-circle mb-1 text-xl"; $('.square-55d63').removeClass('highlight-hint'); }
@@ -593,7 +567,7 @@
             const moves = game.moves({ verbose: true });
             const move = moves.find(m => m.from === source && m.to === target);
             if (!move) { deselectSquare(); return; }
-            if (move.flags.includes('p')) { pendingPromotion = { source, target }; openPromotionModal(game.turn()); }
+            if (move.flags.includes('p')) { pendingPromotion = { source, target }; openPromotionModal(game.turn()); } 
             else { attemptMove(source, target); deselectSquare(); }
         }
 
@@ -620,17 +594,14 @@
         function deselectSquare() { if (selectedSquare) $(`#myBoard .square-${selectedSquare}`).removeClass('highlight-selected'); selectedSquare = null; hideLegalMoves(); }
         function showLegalMoves(square) { hideLegalMoves(); const moves = game.moves({ square: square, verbose: true }); moves.forEach(move => { const cls = (move.flags.includes('c') || move.flags.includes('e')) ? 'hint-legal-capture' : 'hint-legal-move'; $(`#myBoard .square-${move.to}`).addClass(cls); }); }
         function hideLegalMoves() { $('.square-55d63').removeClass('hint-legal-move hint-legal-capture'); }
-
+        
         function highlightLastMove(s, t) {
-            // Nettoyage immédiat
             $('.square-55d63').removeClass('highlight-move');
-
-            // Application différée pour laisser le temps au redraw du board
             setTimeout(() => {
                 $('.square-55d63').removeClass('highlight-move');
                 $(`#myBoard .square-${s}`).addClass('highlight-move');
                 $(`#myBoard .square-${t}`).addClass('highlight-move');
-            }, 100); // 100ms délai pour être sûr
+            }, 100); 
         }
 
         function nextPuzzle() { currentPuzzleIndex++; if (currentPuzzleIndex >= puzzles.length) { fetchPuzzles(); return; } loadPuzzle(puzzles[currentPuzzleIndex]); }
@@ -638,38 +609,30 @@
 
         function loadPuzzle(pd) {
             game.reset();
+            hasFailed = false; // RESET STATE
+            
             if (!game.load_pgn(pd.game.pgn)) { showStatus("Erreur PGN", "error"); setTimeout(nextPuzzle, 1000); return; }
-            let h = game.history({ verbose: true }), setup = null;
-            game.reset(); for (let i = 0; i < pd.puzzle.initialPly; i++) game.move(h[i]);
-            if (h[pd.puzzle.initialPly]) { setup = h[pd.puzzle.initialPly]; game.move(setup); }
+            let h = game.history({verbose:true}), setup=null;
+            game.reset(); for(let i=0; i<pd.puzzle.initialPly; i++) game.move(h[i]);
+            if(h[pd.puzzle.initialPly]) { setup=h[pd.puzzle.initialPly]; game.move(setup); }
 
             board.position(game.fen(), false);
-
-            // Couleur Joueur
+            
             const playerColor = game.turn() === 'w' ? 'white' : 'black';
             board.orientation(playerColor);
 
-            currentSolution = [...pd.puzzle.solution]; isPuzzleActive = true; deselectSquare(); resetHelpButton(); isInfoVisible = false; updateInfoVisibility();
-
-            // Application du highlight APRÈS l'orientation
-            if (setup) {
-                highlightLastMove(setup.from, setup.to);
-                playSound('move');
-            }
-
+            currentSolution = [...pd.puzzle.solution]; isPuzzleActive = true; deselectSquare(); resetHelpButton(); isInfoVisible=false; updateInfoVisibility();
+            
+            if(setup) { highlightLastMove(setup.from, setup.to); playSound('move'); }
             els.rating.innerText = pd.puzzle.rating; renderThemes(pd.puzzle.themes);
-
-            const wp = pd.game.players.find(p => p.color === 'white') || { name: '?', rating: '?' };
-            const bp = pd.game.players.find(p => p.color === 'black') || { name: '?', rating: '?' };
-
-            if (playerColor === 'white') {
-                updateInfos(wp, bp, 'Blanc', 'Noir');
-            } else {
-                updateInfos(bp, wp, 'Noir', 'Blanc');
-            }
-
+            
+            const wp = pd.game.players.find(p=>p.color==='white')||{name:'?', rating:'?'};
+            const bp = pd.game.players.find(p=>p.color==='black')||{name:'?', rating:'?'};
+            if (playerColor === 'white') updateInfos(wp, bp, 'Blanc', 'Noir'); 
+            else updateInfos(bp, wp, 'Noir', 'Blanc');
+            
             updateTurn();
-            els.nextBtn.disabled = true; els.retryBtn.disabled = false; els.helpBtn.disabled = false;
+            els.nextBtn.disabled=true; els.retryBtn.disabled=false; els.helpBtn.disabled=false;
             hideStatus();
         }
 
@@ -684,7 +647,6 @@
                 els.bottomColorIndicator.innerHTML = `<i class="fas fa-chess-pawn text-[8px] text-white"></i>`;
                 els.bottomColorIndicator.className = "absolute -bottom-1 -right-1 w-4 h-4 rounded-full border border-slate-500 shadow-sm flex items-center justify-center bg-black";
             }
-
             if (tColor === 'Blanc') {
                 els.topColorIndicator.innerHTML = `<i class="fas fa-chess-pawn text-[8px] text-slate-800"></i>`;
                 els.topColorIndicator.className = "absolute -bottom-1 -right-1 w-4 h-4 rounded-full border border-slate-500 shadow-sm flex items-center justify-center bg-white";
@@ -695,21 +657,16 @@
         }
 
         function renderThemes(t) {
-            els.themes.innerHTML = ''; if (!t) return;
-            t.forEach(th => {
-                const s = document.createElement('span'); s.innerText = th.charAt(0).toUpperCase() + th.slice(1);
-                s.className = "text-[10px] bg-slate-700 text-slate-300 px-2 py-0.5 rounded border border-slate-600";
+            els.themes.innerHTML=''; if(!t)return;
+            t.forEach(th=>{
+                const s=document.createElement('span'); s.innerText=th.charAt(0).toUpperCase()+th.slice(1);
+                s.className="text-[10px] bg-slate-700 text-slate-300 px-2 py-0.5 rounded border border-slate-600";
                 els.themes.appendChild(s);
             });
         }
 
         function updateTurn() {
-            // Logique de badge "À votre tour" restaurée
-            if (isPuzzleActive) {
-                els.bottomInd.classList.remove('hidden'); els.topInd.classList.add('hidden');
-            } else {
-                els.bottomInd.classList.add('hidden');
-            }
+            if (isPuzzleActive) { els.bottomInd.classList.remove('hidden'); els.topInd.classList.add('hidden'); } else { els.bottomInd.classList.add('hidden'); }
         }
 
         function attemptMove(source, target, promotionPiece = 'q') {
@@ -719,44 +676,57 @@
             let uci = source + target; if (move.promotion) uci += move.promotion;
             if (uci === currentSolution[0]) {
                 currentSolution.shift(); board.position(game.fen()); highlightLastMove(source, target); clearHints(); playSound('move');
-                if (currentSolution.length === 0) { playSound('win'); winPuzzle(); }
+                if (currentSolution.length === 0) { 
+                    playSound('win'); 
+                    winPuzzle(); 
+                } 
                 else {
                     els.bottomInd.classList.add('hidden'); els.topInd.classList.remove('hidden');
                     setTimeout(playOpponent, 600);
                 }
                 return true;
-            } else { game.undo(); board.position(game.fen()); playSound('error'); showStatus("Mauvais coup", "error"); return false; }
+            } else { 
+                game.undo(); board.position(game.fen()); playSound('error'); showStatus("Mauvais coup", "error"); 
+                hasFailed = true; // MARQUER ECHEC
+                return false; 
+            }
         }
 
         function playOpponent() {
             if (currentSolution.length === 0) return;
-            const uci = currentSolution[0], s = uci.substring(0, 2), t = uci.substring(2, 4), p = uci.length > 4 ? uci.substring(4, 5) : undefined;
-            game.move({ from: s, to: t, promotion: p });
-            board.position(game.fen()); highlightLastMove(s, t); playSound('move');
+            const uci = currentSolution[0], s = uci.substring(0,2), t = uci.substring(2,4), p = uci.length>4?uci.substring(4,5):undefined;
+            game.move({from:s, to:t, promotion:p});
+            board.position(game.fen()); highlightLastMove(s,t); playSound('move');
             currentSolution.shift(); updateTurn();
         }
 
         function winPuzzle() {
             isPuzzleActive = false; showStatus("Gagné !", "success");
             isInfoVisible = true; updateInfoVisibility();
-            els.nextBtn.disabled = false; els.retryBtn.disabled = true; els.helpBtn.disabled = true;
+            els.nextBtn.disabled=false; els.retryBtn.disabled=true; els.helpBtn.disabled=true;
             els.bottomInd.classList.add('hidden'); els.topInd.classList.add('hidden');
+            
+            // SAUVEGARDE RESULTAT (Succès = !hasFailed)
+            handleResult(puzzles[currentPuzzleIndex].puzzle.id, !hasFailed);
         }
 
         function handleHelpClick() {
-            if (!isPuzzleActive || currentSolution.length === 0) return;
-            const m = currentSolution[0], s = m.substring(0, 2), t = m.substring(2, 4);
-            if (hintState === 0) { $('.square-55d63').removeClass('highlight-hint'); $(`#myBoard .square-${s}`).addClass('highlight-hint'); showStatus("Pièce indiquée", "info"); hintState = 1; els.helpText.innerText = "SOLUCE"; els.helpIcon.className = "fas fa-lightbulb mb-1 text-xl"; } else attemptMove(s, t);
+            if(!isPuzzleActive || currentSolution.length===0) return;
+            const m = currentSolution[0], s = m.substring(0,2), t = m.substring(2,4);
+            if(hintState===0) { 
+                $('.square-55d63').removeClass('highlight-hint'); $(`#myBoard .square-${s}`).addClass('highlight-hint'); 
+                showStatus("Pièce indiquée", "info"); hintState=1; els.helpText.innerText="SOLUCE"; els.helpIcon.className="fas fa-lightbulb mb-1 text-xl"; 
+                hasFailed = true; // MARQUER ECHEC (Aide utilisée)
+            } else attemptMove(s, t);
         }
         function clearHints() { $('.square-55d63').removeClass('highlight-hint'); resetHelpButton(); }
         function showStatus(t, type) {
-            if (statusTimeout) clearTimeout(statusTimeout); els.status.innerText = t;
-            els.status.className = "absolute top-12 left-1/2 transform -translate-x-1/2 z-50 px-6 py-2 rounded-full font-bold shadow-2xl transition-all duration-300 opacity-100 translate-y-0 whitespace-nowrap border border-white/10 bg-slate-800/95 backdrop-blur text-sm";
-            if (type === 'error') els.status.classList.add('text-red-400', 'border-red-500/30'); else if (type === 'success') els.status.classList.add('text-green-400', 'border-green-500/30'); else els.status.classList.add('text-blue-200');
-            statusTimeout = setTimeout(() => els.status.classList.replace('opacity-100', 'opacity-0'), 2000);
+            if(statusTimeout) clearTimeout(statusTimeout); els.status.innerText=t;
+            els.status.className="absolute top-12 left-1/2 transform -translate-x-1/2 z-50 px-6 py-2 rounded-full font-bold shadow-2xl transition-all duration-300 opacity-100 translate-y-0 whitespace-nowrap border border-white/10 bg-slate-800/95 backdrop-blur text-sm";
+            if(type==='error') els.status.classList.add('text-red-400','border-red-500/30'); else if(type==='success') els.status.classList.add('text-green-400','border-green-500/30'); else els.status.classList.add('text-blue-200');
+            statusTimeout=setTimeout(()=>els.status.classList.replace('opacity-100','opacity-0'), 2000);
         }
-        function hideStatus() { els.status.classList.replace('opacity-100', 'opacity-0'); }
+        function hideStatus() { els.status.classList.replace('opacity-100','opacity-0'); }
     </script>
 </body>
-
 </html>
