@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HD-2D Forest - Soft Shadows</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #050505; font-family: 'Segoe UI', sans-serif; }
+        canvas { display: block; }
+        
+        #loading {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: #eee; font-family: monospace; font-size: 20px;
+            pointer-events: none; transition: opacity 0.5s;
+            z-index: 20; background: rgba(0,0,0,0.7); padding: 15px 25px; border-radius: 30px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        #ui-toggle {
+            position: absolute; top: 20px; right: 20px; z-index: 15;
+            background: rgba(30, 30, 30, 0.8); color: white;
+            border: 1px solid rgba(255,255,255,0.2);
+            width: 44px; height: 44px; border-radius: 50%;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            font-size: 20px; transition: 0.2s;
+        }
+        #ui-toggle:hover { background: #4CAF50; border-color: #4CAF50; }
+        
+        #controls-overlay {
+            position: absolute; top: 80px; right: 20px; width: 260px;
+            padding: 20px; background: rgba(15, 20, 25, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px;
+            color: #ccc; backdrop-filter: blur(12px);
+            transform-origin: top right; transition: all 0.3s ease;
+            max-height: 80vh; overflow-y: auto;
+        }
+        #controls-overlay.hidden { transform: scale(0.9); opacity: 0; pointer-events: none; }
+        #controls-overlay::-webkit-scrollbar { width: 4px; }
+        #controls-overlay::-webkit-scrollbar-thumb { background: #444; border-radius: 2px; }
+
+        .control-group { margin-bottom: 15px; }
+        .control-group label { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; }
+        .control-group input[type="range"] { width: 100%; accent-color: #4CAF50; cursor: pointer; height: 4px; border-radius: 2px; }
+
+        h2 { margin: 0 0 15px 0; font-size: 14px; color: #4CAF50; border-bottom: 1px solid #333; padding-bottom: 10px; letter-spacing: 1px; }
+
+        #ui {
+            position: absolute; bottom: 30px; left: 30px;
+            color: rgba(255, 255, 255, 0.9); font-size: 14px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8); pointer-events: none;
+            user-select: none; transition: opacity 0.3s;
+        }
+        kbd {
+            background: rgba(255,255,255,0.15); padding: 2px 6px; border-radius: 4px; 
+            border: 1px solid rgba(255,255,255,0.3); font-family: monospace; font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">Génération de la Forêt...</div>
+    <button id="ui-toggle" title="Menu (H)">☰</button>
+
+    <div id="controls-overlay">
+        <h2>Atmosphère</h2>
+        <div class="control-group"><label>Soleil <span id="val-sun">3.0</span></label><input type="range" id="slider-sun" min="0" max="5" step="0.1" value="3.0"></div>
+        <div class="control-group"><label>God Rays <span id="val-rays">0.12</span></label><input type="range" id="slider-rays" min="0" max="0.5" step="0.01" value="0.12"></div>
+        <div class="control-group"><label>Vent <span id="val-wind">1.0</span></label><input type="range" id="slider-wind" min="0" max="3" step="0.1" value="1.0"></div>
+        
+        <h2>Particules</h2>
+        <div class="control-group"><label>Taille <span id="val-psize">0.5</span></label><input type="range" id="slider-psize" min="0.1" max="3.0" step="0.1" value="0.5"></div>
+        <div class="control-group"><label>Nombre <span id="val-pcount">1500</span></label><input type="range" id="slider-pcount" min="0" max="10000" step="100" value="1500"></div>
+
+        <h2>Caméra & Effets</h2>
+        <div class="control-group"><label>Focus Range <span id="val-range">5.0</span></label><input type="range" id="slider-range" min="1.0" max="20.0" step="0.5" value="5.0"></div>
+        <div class="control-group"><label>Blur Strength <span id="val-blur">1.5</span></label><input type="range" id="slider-blur" min="0" max="5" step="0.1" value="1.5"></div>
+        <div class="control-group"><label>Vignette <span id="val-vignette">1.2</span></label><input type="range" id="slider-vignette" min="0" max="3.0" step="0.1" value="1.2"></div>
+        <!-- SSAO Retiré -->
+        <div class="control-group"><label>Saturation <span id="val-sat">1.1</span></label><input type="range" id="slider-sat" min="0" max="2" step="0.1" value="1.1"></div>
+        <div class="control-group"><label>Bloom <span id="val-bloom">0.3</span></label><input type="range" id="slider-bloom" min="0" max="1.5" step="0.05" value="0.3"></div>
+    </div>
+
+    <div id="ui">
+        <b>HD-2D Ultimate (No SSAO)</b><br><br>
+        <kbd>Clic Gauche</kbd> Orbiter • <kbd>Molette</kbd> Zoom<br>
+        <kbd>ZQSD</kbd> / <kbd>Flèches</kbd> Bouger
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+        import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+
+        const CONFIG = { treeCount: 550, grassCount: 5000, floorSize: 100 };
+        const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowLeft: false, ArrowDown: false, ArrowRight: false };
+        window.addEventListener('keydown', (e) => { if(keys.hasOwnProperty(e.key) || keys.hasOwnProperty(e.code)) keys[e.key] = true; if(e.key.toLowerCase() === 'h') toggleUI(); });
+        window.addEventListener('keyup', (e) => { if(keys.hasOwnProperty(e.key) || keys.hasOwnProperty(e.code)) keys[e.key] = false; });
+
+        function getTerrainHeight(x, z) {
+            let y = Math.sin(x * 0.08) * Math.cos(z * 0.08) * 2.5; 
+            y += Math.sin(x * 0.2 + z * 0.15) * 1.0;
+            y += Math.sin(z * 0.4) * 0.4;
+            return y;
+        }
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB); 
+        scene.fog = new THREE.FogExp2(0x87CEEB, 0.012);
+
+        const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 200);
+        camera.position.set(0, 18, 28); 
+
+        const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.0; 
+        document.body.appendChild(renderer.domElement);
+
+        // --- DEPTH TARGET ---
+        const depthTarget = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight);
+        depthTarget.texture.minFilter = THREE.NearestFilter;
+        depthTarget.texture.magFilter = THREE.NearestFilter;
+        depthTarget.depthTexture = new THREE.DepthTexture();
+        depthTarget.depthTexture.type = THREE.FloatType;
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true; controls.dampingFactor = 0.08; 
+        controls.maxPolarAngle = Math.PI / 2 - 0.1; controls.minDistance = 2; controls.maxDistance = 60;
+        controls.target.set(0, 0, 0);
+
+        const globalUniforms = { time: { value: 0 }, windStrength: { value: 1.0 } };
+
+        function applyWindToShader(shader, isGrass) {
+            shader.uniforms.time = globalUniforms.time;
+            shader.uniforms.windStrength = globalUniforms.windStrength;
+            shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>\nuniform float time;\nuniform float windStrength;`);
+            const swayLogic = isGrass ? 
+                `float sway = sin(time * 3.0 + instanceMatrix[3][0] * 0.5) * 0.2 * windStrength;
+                 transformed.x += sway * uv.y; 
+                 transformed.z += cos(time * 2.5 + instanceMatrix[3][2] * 0.5) * 0.1 * uv.y * windStrength;` : 
+                `float sway = sin(time * 1.5 + position.x * 0.1) * 0.15 * windStrength;
+                 float intensity = smoothstep(0.1, 1.0, uv.y);
+                 transformed.x += sway * intensity;`;
+            shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>\n${swayLogic}`);
+        }
+
+        function createMat(map, isGrass=false) {
+            const m = new THREE.MeshStandardMaterial({ 
+                map: map, 
+                transparent: false, 
+                alphaTest: 0.5, 
+                side: THREE.DoubleSide, 
+                roughness: 0.9 
+            });
+            m.onBeforeCompile = (s) => applyWindToShader(s, isGrass);
+            m.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: map, alphaTest: 0.5 });
+            m.customDepthMaterial.onBeforeCompile = (s) => applyWindToShader(s, isGrass);
+            return m;
+        }
+
+        function createPixelTexture(drawFunction, w=64, h=64) {
+            const canvas = document.createElement('canvas'); canvas.width=w; canvas.height=h;
+            const ctx = canvas.getContext('2d'); ctx.imageSmoothingEnabled=false;
+            try{drawFunction(ctx,w,h);}catch(e){}
+            const t=new THREE.CanvasTexture(canvas);
+            t.magFilter=THREE.NearestFilter; t.minFilter=THREE.NearestFilter; t.colorSpace=THREE.SRGBColorSpace;
+            return t;
+        }
+
+        const floorTexture = createPixelTexture((ctx, w, h) => {
+            ctx.fillStyle = '#3a753a'; ctx.fillRect(0, 0, w, h);
+            for(let i=0; i<2000; i++) { ctx.fillStyle = Math.random() > 0.5 ? '#2e5b2e' : '#4a854a'; ctx.fillRect(Math.random()*w, Math.random()*h, 2, 2); }
+        }, 256, 256);
+        floorTexture.wrapS = floorTexture.wrapT = THREE.RepeatWrapping; floorTexture.repeat.set(10, 10);
+
+        const grassTexture = createPixelTexture((ctx, w, h) => {
+            ctx.clearRect(0,0,w,h);
+            for(let i=0; i<8; i++) {
+                const height = 10 + Math.random()*20; const x = 5 + Math.random()*(w-10);
+                ctx.fillStyle = Math.random() > 0.5 ? '#6fa86f' : '#8fbc8f'; ctx.fillRect(x, h-height, 3, height);
+            }
+        }, 32, 32);
+
+        const treeTextures = [];
+        treeTextures.push(createPixelTexture((ctx, w, h) => {
+            ctx.fillStyle = '#4e342e'; ctx.fillRect(w/2 - 4, h-20, 8, 20); 
+            for(let l=0; l<7; l++) {
+                const width = 46 - (l * 6); const y = h - 20 - (l * 10);
+                ctx.fillStyle = '#1b5e20'; ctx.fillRect(w/2 - width/2 + 3, y + 4, width, 14);
+                ctx.fillStyle = l%2===0 ? '#2e7d32' : '#388e3c'; ctx.fillRect(w/2 - width/2, y, width, 14);
+                ctx.fillStyle = '#81c784'; ctx.fillRect(w/2 - width/2 + 2, y + 2, 4, 4);
+            }
+        }, 64, 128));
+        treeTextures.push(createPixelTexture((ctx, w, h) => {
+            ctx.fillStyle = '#3e2723'; ctx.fillRect(w/2 - 5, h-25, 10, 25);
+            const foliageCenterY = h - 35;
+            ctx.fillStyle = '#1b5e20'; ctx.beginPath(); ctx.arc(w/2+4, foliageCenterY+5, 28, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#2e7d32'; ctx.beginPath(); ctx.arc(w/2, foliageCenterY, 28, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#4caf50'; ctx.beginPath(); ctx.arc(w/2-5, foliageCenterY-8, 18, 0, Math.PI*2); ctx.fill();
+        }, 128, 128));
+
+        const charTexture = createPixelTexture((ctx, w, h) => {
+            const fw = w / 2;
+            const drawChibi = (offsetX, legAnim) => {
+                const cx = offsetX + fw/2;
+                ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(cx, 120, 12, 5, 0, 0, Math.PI*2); ctx.fill();
+                const ly = 110; ctx.fillStyle = '#3e2723';
+                if(legAnim) { ctx.fillRect(cx - 8, ly - 4, 6, 6); ctx.fillRect(cx + 2, ly, 6, 6); } 
+                else { ctx.fillRect(cx - 8, ly, 6, 6); ctx.fillRect(cx + 2, ly - 4, 6, 6); }
+                ctx.fillStyle = '#b71c1c'; ctx.fillRect(cx - 7, 94, 14, 18);
+                ctx.fillStyle = '#ffca28'; ctx.fillRect(cx - 1, 98, 2, 2); ctx.fillRect(cx - 1, 104, 2, 2);
+                ctx.fillRect(cx - 9, 90, 18, 6); ctx.fillRect(cx + 4, 92, 4, 10);
+                const headY = 66; ctx.fillStyle = '#ffccbc'; ctx.fillRect(cx - 11, headY, 22, 24);
+                ctx.fillStyle = '#212121'; ctx.fillRect(cx - 8, headY + 12, 4, 6); ctx.fillRect(cx + 4, headY + 12, 4, 6);
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(cx - 7, headY + 13, 2, 2); ctx.fillRect(cx + 5, headY + 13, 2, 2);
+                ctx.fillStyle = '#ffab91'; ctx.fillRect(cx - 10, headY + 18, 3, 2); ctx.fillRect(cx + 7, headY + 18, 3, 2);
+                ctx.fillStyle = '#303f9f'; ctx.fillRect(cx - 14, headY - 4, 28, 6);
+                for(let i=0; i<6; i++) { let wHat = 22 - i*4; ctx.fillRect(cx - wHat/2, headY - 4 - (i+1)*5, wHat, 5); }
+            };
+            drawChibi(0, false); drawChibi(fw, true);
+        }, 128, 128);
+        charTexture.repeat.set(0.5, 1);
+
+        const planeGeo = new THREE.PlaneGeometry(CONFIG.floorSize, CONFIG.floorSize, 128, 128);
+        const posAttr = planeGeo.attributes.position;
+        for (let i = 0; i < posAttr.count; i++) {
+            const x = posAttr.getX(i); const y = posAttr.getY(i);
+            posAttr.setZ(i, getTerrainHeight(x, -y));
+        }
+        planeGeo.computeVertexNormals();
+        const ground = new THREE.Mesh(planeGeo, new THREE.MeshStandardMaterial({ map: floorTexture, roughness: 1.0, metalness: 0.0, side: THREE.DoubleSide }));
+        ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
+        scene.add(ground);
+
+        const treesGroup = new THREE.Group();
+        const treeMats = treeTextures.map(t => createMat(t, false));
+
+        for(let i=0; i<CONFIG.treeCount; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const r = 5 + Math.random() * (CONFIG.floorSize/2 - 8);
+            const x = Math.cos(angle) * r; const z = Math.sin(angle) * r; const y = getTerrainHeight(x, z);
+            const type = Math.floor(Math.random() * treeTextures.length);
+            const scale = 0.6 + Math.random() * 1.2;
+            const mesh = new THREE.Mesh(new THREE.PlaneGeometry(3, 6), treeMats[type]);
+            mesh.position.set(x, y + (3 * scale) - 0.2, z); 
+            mesh.scale.set(scale, scale, scale);
+            mesh.rotation.y = Math.random() * 0.5 - 0.25;
+            mesh.castShadow = true; mesh.receiveShadow = true;
+            treesGroup.add(mesh);
+        }
+        scene.add(treesGroup);
+
+        const grassGeo = new THREE.PlaneGeometry(1, 1);
+        const grassMat = createMat(grassTexture, true); grassMat.color = new THREE.Color(0xcccccc);
+        const grassMesh = new THREE.InstancedMesh(grassGeo, grassMat, CONFIG.grassCount);
+        const dummy = new THREE.Object3D();
+        for(let i=0; i<CONFIG.grassCount; i++) {
+            const x = (Math.random() - 0.5) * CONFIG.floorSize; const z = (Math.random() - 0.5) * CONFIG.floorSize;
+            const y = getTerrainHeight(x, z);
+            dummy.position.set(x, y + 0.5, z); dummy.scale.setScalar(0.8 + Math.random() * 0.5);
+            dummy.rotation.y = Math.random() * Math.PI; dummy.updateMatrix();
+            grassMesh.setMatrixAt(i, dummy.matrix);
+        }
+        grassMesh.receiveShadow = true; scene.add(grassMesh);
+
+        const charGeo = new THREE.PlaneGeometry(1.5, 1.5);
+        const charMat = createMat(charTexture, false); charMat.roughness = 0.5;
+        const character = new THREE.Mesh(charGeo, charMat);
+        character.position.y = 10; character.castShadow = true; character.receiveShadow = true;
+        scene.add(character);
+
+        // --- LUMIÈRES & CORRECTION FLICKER ---
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x224422, 1.2); scene.add(hemiLight);
+        const sunLight = new THREE.DirectionalLight(0xfffaed, 3.0);
+        sunLight.position.set(-30, 40, 30); sunLight.castShadow = true;
+        sunLight.shadow.mapSize.set(4096, 4096); 
+        // Réglages pour ombres douces "naturelles"
+        sunLight.shadow.radius = 4; // Ajoute du flou aux ombres (PCFSoft)
+        sunLight.shadow.bias = -0.0001;
+        sunLight.shadow.normalBias = 0.05; 
+        scene.add(sunLight);
+
+        // --- GOD RAYS ---
+        const rayGeo = new THREE.CylinderGeometry(1.2, 3.5, 30, 16, 1, true);
+        const rayMat = new THREE.ShaderMaterial({
+            uniforms: { color: { value: new THREE.Color(0xfff0d0) }, opacity: { value: 0.12 }, time: { value: 0 } },
+            vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+            fragmentShader: `
+                uniform vec3 color; uniform float opacity; uniform float time; varying vec2 vUv;
+                void main() {
+                    float edge = 1.0 - abs(vUv.x - 0.5) * 2.0; edge = smoothstep(0.0, 1.0, edge);
+                    float vertical = smoothstep(0.0, 0.2, vUv.y) * smoothstep(1.0, 0.4, vUv.y);
+                    float pulse = 0.8 + 0.2 * sin(time * 0.8 + vUv.y * 3.0);
+                    gl_FragColor = vec4(color, opacity * edge * vertical * pulse);
+                }
+            `,
+            transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+        });
+        for(let i=0; i<10; i++) {
+            const ray = new THREE.Mesh(rayGeo, rayMat);
+            ray.position.set((Math.random()-0.5)*50, 15, (Math.random()-0.5)*50);
+            ray.rotation.x = 0.5; ray.rotation.z = -0.2; scene.add(ray);
+        }
+
+        // --- PARTICULES ---
+        const pMax = 10000;
+        const pGeo = new THREE.BufferGeometry();
+        const pPos = new Float32Array(pMax*3);
+        const pData = new Float32Array(pMax); // Data pour random offset/vitesse
+        for(let i=0; i<pMax*3; i++) { pPos[i] = (Math.random()-0.5)*80; }
+        for(let i=0; i<pMax; i++) { pData[i] = Math.random(); }
+        pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+        pGeo.setAttribute('data', new THREE.BufferAttribute(pData, 1));
+        
+        const pMat = new THREE.ShaderMaterial({
+            uniforms: {
+                color: { value: new THREE.Color(0xffffee) },
+                time: { value: 0 },
+                scale: { value: window.innerHeight / 2.0 },
+                sizeMult: { value: 1.0 }
+            },
+            vertexShader: `
+                uniform float time; uniform float scale; uniform float sizeMult;
+                attribute float data; varying float vLight;
+                void main() {
+                    vec3 pos = position;
+                    // Animation drift
+                    pos.x += sin(time * 0.2 + data * 10.0) * 0.5;
+                    pos.y += mod(time * (0.2 + data * 0.5) + pos.x, 20.0) - 10.0;
+                    pos.z += cos(time * 0.1 + data * 10.0) * 0.5;
+                    
+                    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+                    gl_PointSize = (3.0 * scale * sizeMult * (0.5 + data * 0.5)) / -mvPosition.z;
+                    gl_Position = projectionMatrix * mvPosition;
+                    
+                    // Réaction lumière (plus brillant si haut)
+                    vLight = 0.3 + 0.7 * smoothstep(-5.0, 10.0, pos.y);
+                }
+            `,
+            fragmentShader: `
+                uniform vec3 color; varying float vLight;
+                void main() {
+                    float dist = length(gl_PointCoord - vec2(0.5));
+                    if(dist > 0.5) discard;
+                    float alpha = 1.0 - smoothstep(0.0, 0.5, dist);
+                    // Light reaction: plus blanc/brillant si 'vLight' est haut
+                    vec3 finalCol = mix(color, vec3(1.0), vLight * 0.3); 
+                    gl_FragColor = vec4(finalCol, alpha * vLight * 0.6);
+                }
+            `,
+            transparent: true, blending: THREE.AdditiveBlending, depthWrite: false
+        });
+        const particles = new THREE.Points(pGeo, pMat);
+        pGeo.setDrawRange(0, 1500); // Start count
+        scene.add(particles);
+
+        // --- POST-PROCESSING ---
+        const composer = new EffectComposer(renderer); 
+        composer.addPass(new RenderPass(scene, camera));
+
+        // SSAO REMOVED !
+
+        const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+        bloom.strength = 0.3; bloom.radius = 0.5; bloom.threshold = 0.8;
+        composer.addPass(bloom);
+
+        const dofShader = {
+            uniforms: {
+                "tDiffuse": { value: null },
+                "tDepth": { value: null },
+                "cameraNear": { value: camera.near },
+                "cameraFar": { value: camera.far },
+                "focusDistance": { value: 10.0 },
+                "focusRange": { value: 5.0 },
+                "blurStrength": { value: 1.5 },
+                "vignette": { value: 1.2 },
+                "saturation": { value: 1.1 },
+                "resolution": { value: new THREE.Vector2(window.innerWidth, window.innerHeight) }
+            },
+            vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+            fragmentShader: `
+                #include <packing>
+                uniform sampler2D tDiffuse;
+                uniform sampler2D tDepth;
+                uniform float cameraNear; uniform float cameraFar;
+                uniform float focusDistance; uniform float focusRange;
+                uniform float blurStrength; uniform float vignette; uniform float saturation;
+                uniform vec2 resolution;
+                varying vec2 vUv;
+
+                void main() {
+                    vec4 color = texture2D(tDiffuse, vUv);
+                    float fragCoordZ = texture2D(tDepth, vUv).x;
+                    float viewZ = perspectiveDepthToViewZ( fragCoordZ, cameraNear, cameraFar );
+                    float currentDist = -viewZ;
+                    
+                    float distFromFocus = abs(currentDist - focusDistance);
+                    float blur = smoothstep(0.0, focusRange, distFromFocus) * blurStrength;
+                    
+                    if(blur > 0.05) {
+                        vec2 pixel = vec2(1.0) / resolution;
+                        vec4 sum = vec4(0.0);
+                        float total = 0.0;
+                        float step = blur * 2.0; 
+                        for(float x = -1.0; x <= 1.0; x++) {
+                            for(float y = -1.0; y <= 1.0; y++) {
+                                vec2 offset = vec2(x, y) * pixel * step;
+                                sum += texture2D(tDiffuse, vUv + offset);
+                                total += 1.0;
+                            }
+                        }
+                        color = sum / total;
+                    }
+
+                    vec2 uv = (vUv - 0.5) * 2.0;
+                    color.rgb *= (1.0 - dot(uv, uv) * 0.4 * vignette);
+                    float lum = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+                    color.rgb = mix(vec3(lum), color.rgb, saturation);
+                    color.rgb = pow(color.rgb, vec3(1.1)); 
+                    color.rgb *= vec3(1.05, 1.02, 0.98); 
+
+                    gl_FragColor = color;
+                }
+            `
+        };
+        const dofPass = new ShaderPass(dofShader);
+        dofPass.uniforms.tDepth.value = depthTarget.depthTexture; 
+        composer.addPass(dofPass);
+
+        // --- UI ---
+        function toggleUI() { document.getElementById('controls-overlay').classList.toggle('hidden'); }
+        document.getElementById('ui-toggle').onclick = toggleUI;
+        
+        document.getElementById('slider-wind').oninput = (e) => globalUniforms.windStrength.value = parseFloat(e.target.value);
+        document.getElementById('slider-blur').oninput = (e) => dofPass.uniforms.blurStrength.value = parseFloat(e.target.value);
+        document.getElementById('slider-range').oninput = (e) => dofPass.uniforms.focusRange.value = parseFloat(e.target.value);
+        document.getElementById('slider-sun').oninput = (e) => sunLight.intensity = parseFloat(e.target.value);
+        document.getElementById('slider-sat').oninput = (e) => dofPass.uniforms.saturation.value = parseFloat(e.target.value);
+        document.getElementById('slider-bloom').oninput = (e) => bloom.strength = parseFloat(e.target.value);
+        document.getElementById('slider-vignette').oninput = (e) => dofPass.uniforms.vignette.value = parseFloat(e.target.value);
+        
+        document.getElementById('slider-rays').oninput = (e) => rayMat.uniforms.opacity.value = parseFloat(e.target.value);
+        // SSAO removed listener
+        document.getElementById('slider-psize').oninput = (e) => pMat.uniforms.sizeMult.value = parseFloat(e.target.value);
+        document.getElementById('slider-pcount').oninput = (e) => pGeo.setDrawRange(0, parseInt(e.target.value));
+
+        // --- ANIMATION ---
+        const clock = new THREE.Clock();
+        let frameTime = 0, charFrame = 0; const charSpeed = 8.0;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = clock.getDelta(); const time = clock.getElapsedTime();
+            globalUniforms.time.value = time; rayMat.uniforms.time.value = time;
+            pMat.uniforms.time.value = time;
+
+            let moving = false; let moveX = 0, moveZ = 0;
+            if (keys.ArrowUp || keys.w) moveZ = -1; if (keys.ArrowDown || keys.s) moveZ = 1;
+            if (keys.ArrowLeft || keys.a) moveX = -1; if (keys.ArrowRight || keys.d) moveX = 1;
+
+            if (moveX !== 0 || moveZ !== 0) {
+                moving = true; const len = Math.sqrt(moveX*moveX + moveZ*moveZ); moveX /= len; moveZ /= len;
+                character.position.x += moveX * charSpeed * dt; character.position.z += moveZ * charSpeed * dt;
+                const lim = CONFIG.floorSize/2 - 2;
+                character.position.x = Math.max(-lim, Math.min(lim, character.position.x));
+                character.position.z = Math.max(-lim, Math.min(lim, character.position.z));
+                frameTime += dt;
+                if(frameTime > 0.12) { frameTime = 0; charFrame = (charFrame + 1) % 2; charTexture.offset.x = charFrame * 0.5; }
+            } else { charFrame = 0; charTexture.offset.x = 0; }
+
+            character.position.y = getTerrainHeight(character.position.x, character.position.z) + 0.7;
+            character.lookAt(camera.position.x, character.position.y, camera.position.z);
+            character.rotation.x = 0; character.rotation.z = 0;
+
+            controls.target.lerp(character.position, 0.1);
+            const oldTarget = controls.target.clone();
+            controls.update();
+            const delta = new THREE.Vector3().subVectors(controls.target, oldTarget);
+            camera.position.add(delta);
+
+            const dist = camera.position.distanceTo(character.position);
+            dofPass.uniforms.focusDistance.value = dist;
+
+            // 1. Rendu Profondeur (Séparé)
+            renderer.setRenderTarget(depthTarget);
+            renderer.render(scene, camera);
+
+            // 2. Rendu Écran
+            renderer.setRenderTarget(null);
+            composer.render();
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight); composer.setSize(window.innerWidth, window.innerHeight);
+            dofPass.uniforms.resolution.value.set(window.innerWidth, window.innerHeight);
+            depthTarget.setSize(window.innerWidth, window.innerHeight);
+            pMat.uniforms.scale.value = window.innerHeight / 2.0;
+        });
+
+        document.getElementById('loading').style.opacity = 0; animate();
+    </script>
+</body>
+</html>
